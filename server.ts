@@ -4,19 +4,42 @@ import path from "path";
 import { fileURLToPath } from "url";
 import cookieParser from "cookie-parser";
 import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
+import { OAuth2Client } from "google-auth-library";
 import { prisma } from "./src/lib/prisma";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const JWT_SECRET = process.env.JWT_SECRET || "checktrip-secret-key-123";
+const GOOGLE_CLIENT_ID = "923509761070-56p6i5iju5ofefm4q7ieokor78luchm5.apps.googleusercontent.com";
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  // CORS Manual
+  app.use((req, res, next) => {
+    res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
+    res.header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,PATCH,OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    res.header("Access-Control-Allow-Credentials", "true");
+    if (req.method === "OPTIONS") return res.sendStatus(200);
+    next();
+  });
+
   app.use(express.json());
   app.use(cookieParser());
+
+  // Log de Depuração de Requisições GERAL
+  app.use((req, res, next) => {
+    console.log(`>>> [SERVER] ${req.method} ${req.url}`);
+    if (req.body && Object.keys(req.body).length > 0) {
+      console.log(`    [BODY]`, JSON.stringify(req.body).substring(0, 50));
+    }
+    next();
+  });
 
   console.log("DATABASE_URL defined:", !!process.env.DATABASE_URL);
   if (process.env.DATABASE_URL) {
@@ -47,27 +70,84 @@ async function startServer() {
   };
 
   // ─── Auth Endpoints ────────────────────────────────────────────────────────
-  app.post("/api/auth/login", async (req, res) => {
-    const { email } = req.body;
+  app.post("/api/auth/register", async (req, res) => {
+    const { email, password, name } = req.body;
     try {
-      const dbUser = await prisma.user.upsert({
-        where: { email },
-        update: {},
-        create: { email, name: email.split("@")[0] },
+      const existing = await prisma.user.findUnique({ where: { email } });
+      if (existing) return res.status(400).json({ error: "E-mail já cadastrado" });
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const user = await prisma.user.create({
+        data: { email, password: hashedPassword, name: name || email.split("@")[0] }
       });
-      const token = jwt.sign({ email }, JWT_SECRET, { expiresIn: "7d" });
-      res.cookie("auth_token", token, {
-        httpOnly: true,
-        secure: true,
-        sameSite: "none",
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-      });
-      res.json({ user: { email, id: dbUser.id }, token });
+
+      const token = jwt.sign({ email: user.email, id: user.id }, JWT_SECRET, { expiresIn: "7d" });
+      res.cookie("auth_token", token, { httpOnly: true, secure: false, sameSite: "lax", maxAge: 7 * 24 * 60 * 60 * 1000 });
+      res.json({ user: { email: user.email, id: user.id }, token });
+    } catch (err) {
+      console.error("Register error:", err);
+      res.status(500).json({ error: "Erro ao criar conta" });
+    }
+  });
+
+  app.post("/api/auth/login", async (req, res) => {
+    const { email, password } = req.body;
+    try {
+      const user = await prisma.user.findUnique({ where: { email } });
+      if (!user) return res.status(401).json({ error: "E-mail ou senha inválidos" });
+
+      if (user.password) {
+        const valid = await bcrypt.compare(password, user.password);
+        if (!valid) return res.status(401).json({ error: "E-mail ou senha inválidos" });
+      } else if (!user.googleId) {
+        return res.status(400).json({ error: "Esta conta usa outro método de login" });
+      }
+
+      const token = jwt.sign({ email: user.email, id: user.id }, JWT_SECRET, { expiresIn: "7d" });
+      res.cookie("auth_token", token, { httpOnly: true, secure: false, sameSite: "lax", maxAge: 7 * 24 * 60 * 60 * 1000 });
+      res.json({ user: { email: user.email, id: user.id }, token });
     } catch (err) {
       console.error("Login error:", err);
-      // Fallback sem banco
-      const token = jwt.sign({ email }, JWT_SECRET, { expiresIn: "7d" });
-      res.json({ user: { email }, token });
+      res.status(500).json({ error: "Erro ao fazer login" });
+    }
+  });
+
+  app.post("/api/auth/google", async (req, res) => {
+    console.log("[GOOGLE AUTH] Request recebida no servidor!");
+    console.log("[GOOGLE AUTH] Body:", JSON.stringify(req.body).substring(0, 100));
+    const { credential } = req.body;
+    console.log("[GOOGLE AUTH] Recebido token. Tamanho:", credential?.length || 0);
+    try {
+      const ticket = await googleClient.verifyIdToken({
+        idToken: credential,
+        audience: GOOGLE_CLIENT_ID,
+      });
+      const payload = ticket.getPayload();
+      console.log("[GOOGLE AUTH] Payload extraído com sucesso:", payload?.email);
+      if (!payload) throw new Error("Invalid google token");
+
+      const { email, sub: googleId, name, picture } = payload;
+      if (!email) throw new Error("Email missing from google");
+
+      let user = await prisma.user.findUnique({ where: { email } });
+
+      if (!user) {
+        user = await prisma.user.create({
+          data: { email, googleId, name, image: picture }
+        });
+      } else if (!user.googleId) {
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: { googleId }
+        });
+      }
+
+      const token = jwt.sign({ email: user.email, id: user.id }, JWT_SECRET, { expiresIn: "7d" });
+      res.cookie("auth_token", token, { httpOnly: true, secure: false, sameSite: "lax", maxAge: 7 * 24 * 60 * 60 * 1000 });
+      res.json({ user: { email: user.email, id: user.id, name: user.name, image: user.image }, token });
+    } catch (err: any) {
+      console.error("Google Auth Error Detail:", err.message, err.stack);
+      res.status(401).json({ error: "Falha na autenticação com Google", details: err.message });
     }
   });
 
@@ -87,8 +167,11 @@ async function startServer() {
 
   // ─── Group Endpoints ───────────────────────────────────────────────────────
   app.post("/api/groups", authenticate, async (req: any, res) => {
-    const { name, description, type } = req.body;
-    const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const { name, description, type, image } = req.body;
+    const inviteCode = Math.random().toString(36).substring(2, 9).toUpperCase();
+    const defaultImage = "https://images.unsplash.com/photo-1483729558449-99ef09a8c325?q=80&w=1470&auto=format&fit=crop";
+    const groupImage = image || defaultImage;
+
     try {
       const user = await prisma.user.upsert({
         where: { email: req.user.email },
@@ -97,11 +180,11 @@ async function startServer() {
       });
       const newGroup = await prisma.group.create({
         data: {
-          name, description, type: type || "group", inviteCode, ownerId: user.id,
+          name, description, type: type || "group", inviteCode, ownerId: user.id, image: groupImage,
           members: { create: { userId: user.id, role: "OWNER" } },
         },
       });
-      res.json({ ...newGroup, memberCount: 1, userBalance: 0, image: `https://picsum.photos/seed/${encodeURIComponent(name)}/400/200` });
+      res.json({ ...newGroup, memberCount: 1, userBalance: 0, image: newGroup.image });
     } catch (err) {
       console.error("Error creating group:", err);
       res.status(500).json({ error: "Failed to create group" });
@@ -144,6 +227,28 @@ async function startServer() {
     }
   });
 
+  app.patch("/api/groups/:groupId/image", authenticate, async (req: any, res) => {
+    const { groupId } = req.params;
+    const { image } = req.body;
+
+    try {
+      const dbUser = await prisma.user.findUnique({ where: { email: req.user.email } });
+      if (!dbUser) return res.status(401).json({ error: "Unauthorized" });
+
+      const defaultImage = "https://images.unsplash.com/photo-1483729558449-99ef09a8c325?q=80&w=1470&auto=format&fit=crop";
+      const groupImage = image || defaultImage;
+
+      const updatedGroup = await prisma.group.update({
+        where: { id: groupId },
+        data: { image: groupImage }
+      });
+      res.json(updatedGroup);
+    } catch (err) {
+      console.error("Error updating group image:", err);
+      res.status(500).json({ error: "Failed to update group image" });
+    }
+  });
+
   app.get("/api/groups", authenticate, async (req: any, res) => {
     try {
       const user = await prisma.user.findUnique({
@@ -160,7 +265,7 @@ async function startServer() {
         inviteCode: m.group.inviteCode,
         memberCount: m.group.members.length,
         userBalance: 0,
-        image: `https://picsum.photos/seed/${encodeURIComponent(m.group.name)}/400/200`,
+        image: m.group.image,
       }));
       res.json(groups);
     } catch (err) {
@@ -212,7 +317,7 @@ async function startServer() {
         id: dest.id,
         name: dest.name,
         description: dest.description,
-        image: dest.image || `https://picsum.photos/seed/${encodeURIComponent(dest.name)}/600/300`,
+        image: dest.image,
         status: dest.status,
         votes: dest.votes.reduce((sum, v) => sum + v.value, 0),
         userVote: user ? (dest.votes.find((v) => v.userId === user.id)?.value || 0) : 0,
@@ -227,24 +332,47 @@ async function startServer() {
   app.post("/api/groups/:groupId/destinations", authenticate, async (req: any, res) => {
     const { groupId } = req.params;
     const { name, description, image } = req.body;
+    const defaultImage = "https://images.unsplash.com/photo-1483729558449-99ef09a8c325?q=80&w=1470&auto=format&fit=crop";
+    const destImage = image || defaultImage;
+
     try {
-      const user = await prisma.user.upsert({
-        where: { email: req.user.email },
-        update: {},
-        create: { email: req.user.email, name: req.user.email.split("@")[0] },
+      const dbUser = await prisma.user.findUnique({ where: { email: req.user.email } });
+      if (!dbUser) return res.status(401).json({ error: "Unauthorized" });
+
+      const newDest = await prisma.destination.create({
+        data: { groupId, name, description, image: destImage, suggestedBy: dbUser.id },
       });
-      const dest = await prisma.destination.create({
-        data: { groupId, name, description, image: image || null, suggestedBy: user.id },
-      });
-      await prisma.vote.create({ data: { userId: user.id, destinationId: dest.id, value: 1 } });
+      await prisma.vote.create({ data: { userId: dbUser.id, destinationId: newDest.id, value: 1 } });
       res.json({
-        id: dest.id, name: dest.name, description: dest.description,
-        image: dest.image || `https://picsum.photos/seed/${encodeURIComponent(dest.name)}/600/300`,
-        status: dest.status, votes: 1, userVote: 1,
+        id: newDest.id, name: newDest.name, description: newDest.description,
+        image: newDest.image,
+        status: newDest.status, votes: 1, userVote: 1,
       });
     } catch (err) {
       console.error("Error creating destination:", err);
       res.status(500).json({ error: "Failed to create destination" });
+    }
+  });
+
+  app.patch("/api/destinations/:id/image", authenticate, async (req: any, res) => {
+    const { id } = req.params;
+    const { image } = req.body;
+
+    try {
+      const dbUser = await prisma.user.findUnique({ where: { email: req.user.email } });
+      if (!dbUser) return res.status(401).json({ error: "Unauthorized" });
+
+      const defaultImage = "https://images.unsplash.com/photo-1483729558449-99ef09a8c325?q=80&w=1470&auto=format&fit=crop";
+      const destImage = image || defaultImage;
+
+      const updatedDest = await prisma.destination.update({
+        where: { id },
+        data: { image: destImage }
+      });
+      res.json(updatedDest);
+    } catch (err) {
+      console.error("Error updating destination image:", err);
+      res.status(500).json({ error: "Failed to update destination image" });
     }
   });
 

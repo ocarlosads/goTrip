@@ -1,38 +1,107 @@
-import React, { useState } from "react";
-import { motion } from "motion/react";
-import { Plane, Mail, ArrowRight, Loader2 } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import { Plane, Mail, ArrowRight, Loader2, Lock, User, AlertCircle } from "lucide-react";
 import { cn } from "../../lib/utils";
+import { apiFetch } from "../../lib/api";
 
 interface LoginFormProps {
   onLogin: (email: string, token: string, userId?: string) => void;
 }
 
 export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
+  const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isSent, setIsSent] = useState(false);
+
+  const GOOGLE_CLIENT_ID = "923509761070-56p6i5iju5ofefm4q7ieokor78luchm5.apps.googleusercontent.com";
+
+  useEffect(() => {
+    /* global google */
+    const initializeGoogle = () => {
+      if ((window as any).google) {
+        (window as any).google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: handleGoogleCallback,
+        });
+        (window as any).google.accounts.id.renderButton(
+          document.getElementById("googleBtn"),
+          { theme: "outline", size: "large", width: "100%", text: "continue_with", shape: "pill" }
+        );
+      }
+    };
+
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.onload = initializeGoogle;
+    document.head.appendChild(script);
+
+    return () => {
+      document.head.removeChild(script);
+    };
+  }, []);
+
+  const handleGoogleCallback = async (response: any) => {
+    console.log("Google callback received:", response);
+    setIsLoading(true);
+    setError("");
+    try {
+      const res = await fetch("http://localhost:3000/api/auth/google", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ credential: response.credential }),
+      });
+
+      const text = await res.text();
+      console.log("Raw response from server:", text);
+
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        console.error("JSON Parse Error. Text was:", text);
+        throw new Error(`Resposta inválida do servidor: ${text.substring(0, 100)}`);
+      }
+
+      if (res.ok) {
+        onLogin(data.user.email, data.token, data.user.id);
+      } else {
+        setError(data.details ? `Falha Google: ${data.details}` : data.error || "Falha ao entrar com Google.");
+      }
+    } catch (err: any) {
+      setError(`Erro de conexão: ${err.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) return;
+    if (!email || !password) return;
+    if (mode === "register" && !name) return;
 
     setIsLoading(true);
+    setError("");
     try {
-      const res = await fetch("/api/auth/login", {
+      const endpoint = mode === "login" ? "/api/auth/login" : "/api/auth/register";
+      const res = await apiFetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, password, name }),
       });
 
+      const data = await res.json();
       if (res.ok) {
-        const data = await res.json();
-        setIsSent(true);
-        // Em um app real, esperaríamos o magic link.
-        // Para o demo, vamos logar direto após 1.5s
-        setTimeout(() => onLogin(email, data.token, data.user?.id), 1500);
+        onLogin(email, data.token, data.user?.id);
+      } else {
+        setError(data.details ? `${data.error}: ${data.details}` : data.error || "Erro ao processar solicitação");
       }
-    } catch (error) {
-      console.error("Erro ao fazer login:", error);
+    } catch (err) {
+      setError("Erro ao conectar com o servidor");
     } finally {
       setIsLoading(false);
     }
@@ -53,72 +122,84 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
         </div>
 
         <div className="text-center mb-8">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Bem-vindo de volta</h2>
-          <p className="text-gray-500 dark:text-gray-400 mt-2">Organize suas viagens em grupo sem o caos do WhatsApp.</p>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+            {mode === "login" ? "Bem-vindo de volta" : "Criar sua conta"}
+          </h2>
+          <p className="text-gray-500 dark:text-gray-400 mt-2">
+            Organize suas viagens em grupo sem o caos do WhatsApp.
+          </p>
         </div>
 
-        {isSent ? (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-900/30 text-emerald-700 dark:text-emerald-400 p-4 rounded-xl text-center"
-          >
-            <Mail className="w-8 h-8 mx-auto mb-2 opacity-80" />
-            <p className="font-medium">Link enviado!</p>
-            <p className="text-sm opacity-90">Verifique seu e-mail para entrar.</p>
-          </motion.div>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                E-mail
-              </label>
-              <input
-                id="email"
-                type="email"
-                placeholder="seu@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
-                required
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className={cn(
-                "w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl transition-all flex items-center justify-center gap-2",
-                isLoading && "opacity-70 cursor-not-allowed"
-              )}
+        <AnimatePresence mode="wait">
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 text-red-600 dark:text-red-400 p-3 rounded-xl flex items-center gap-2 text-sm mb-6"
             >
-              {isLoading ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <>
-                  Entrar com E-mail <ArrowRight className="w-5 h-5" />
-                </>
-              )}
-            </button>
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              {error}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-100 dark:border-gray-800"></div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {mode === "register" && (
+            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome Completo</label>
+              <div className="relative">
+                <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Seu nome" className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all" required />
+                <User className="absolute left-3 top-3.5 w-4 h-4 text-gray-400" />
               </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white dark:bg-gray-900 text-gray-400 dark:text-gray-500 uppercase tracking-wider font-medium">Ou</span>
-              </div>
+            </motion.div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">E-mail</label>
+            <div className="relative">
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu@email.com" className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all" required />
+              <Mail className="absolute left-3 top-3.5 w-4 h-4 text-gray-400" />
             </div>
+          </div>
 
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Senha</label>
+            <div className="relative">
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all" required />
+              <Lock className="absolute left-3 top-3.5 w-4 h-4 text-gray-400" />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3.5 rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-70 mt-2 shadow-lg shadow-indigo-100 dark:shadow-none"
+          >
+            {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : mode === "login" ? "Entrar" : "Criar Conta"}
+          </button>
+
+          <div className="text-center mt-4">
             <button
               type="button"
-              className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 font-medium py-3 rounded-xl transition-all flex items-center justify-center gap-3"
+              onClick={() => setMode(mode === "login" ? "register" : "login")}
+              className="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
             >
-              <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" referrerPolicy="no-referrer" />
-              Continuar com Google
+              {mode === "login" ? "Não tem uma conta? Cadastre-se" : "Já tem uma conta? Faça login"}
             </button>
-          </form>
-        )}
+          </div>
+
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-100 dark:border-gray-800"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white dark:bg-gray-900 text-gray-400 dark:text-gray-500 uppercase tracking-wider font-medium text-[10px]">Ou</span>
+            </div>
+          </div>
+
+          <div id="googleBtn" className="w-full flex justify-center"></div>
+        </form>
 
         <p className="mt-8 text-center text-xs text-gray-400 dark:text-gray-500">
           Ao continuar, você concorda com nossos Termos de Serviço e Política de Privacidade.

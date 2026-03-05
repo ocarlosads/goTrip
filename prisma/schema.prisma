@@ -12,6 +12,8 @@ model User {
   name          String?
   email         String       @unique
   emailVerified DateTime?
+  password      String?      // Hash da senha para login por e-mail
+  googleId      String?      @unique // ID do Google para login social
   image         String?
   plan          String       @default("FREE") // FREE, PRO, PRO_ANNUAL
   createdAt     DateTime     @default(now())

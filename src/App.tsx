@@ -20,6 +20,7 @@ interface Group {
   description: string;
   type: "solo" | "couple" | "group";
   image?: string;
+  inviteCode: string;
   memberCount: number;
   nextTripDate?: string;
   userBalance: number;
@@ -92,8 +93,9 @@ export default function App() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F9FAFB] dark:bg-gray-950">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col items-center justify-center transition-colors space-y-4">
+        <Loader2 className="w-12 h-12 text-indigo-600 animate-spin" />
+        <p className="text-lg font-bold text-gray-900 dark:text-gray-100">Carregando CheckTrip...</p>
       </div>
     );
   }
@@ -350,6 +352,7 @@ function NavItem({ icon, label, active, onClick }: { icon: React.ReactNode, labe
 
 function DashboardView({ onSelectGroup, user }: { onSelectGroup: (g: Group) => void, user: User | null }) {
   const [groups, setGroups] = useState<Group[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
   const [joinId, setJoinId] = useState("");
@@ -362,6 +365,7 @@ function DashboardView({ onSelectGroup, user }: { onSelectGroup: (g: Group) => v
     }
 
     const fetchGroups = async () => {
+      setIsLoading(true);
       try {
         const res = await apiFetch("/api/groups");
         if (res.ok) {
@@ -370,6 +374,8 @@ function DashboardView({ onSelectGroup, user }: { onSelectGroup: (g: Group) => v
         }
       } catch (err) {
         console.error("Error fetching groups:", err);
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -382,12 +388,13 @@ function DashboardView({ onSelectGroup, user }: { onSelectGroup: (g: Group) => v
     const name = formData.get('name') as string;
     const description = formData.get('description') as string;
     const type = formData.get('type') as "solo" | "couple" | "group";
+    const image = formData.get('image') as string;
 
     try {
       const res = await apiFetch("/api/groups", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, description, type }),
+        body: JSON.stringify({ name, description, type, image }),
       });
 
       if (res.ok) {
@@ -429,6 +436,15 @@ function DashboardView({ onSelectGroup, user }: { onSelectGroup: (g: Group) => v
       console.error("Error joining group:", err);
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 space-y-4">
+        <Loader2 className="w-12 h-12 text-indigo-600 animate-spin" />
+        <p className="text-lg font-bold text-gray-900 dark:text-gray-100">Carregando suas viagens...</p>
+      </div>
+    );
+  }
 
   if (groups.length === 0) {
     return (
@@ -568,6 +584,16 @@ function CreateGroupModal({ isOpen, onClose, onSubmit }: { isOpen: boolean, onCl
               </div>
 
               <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Link da Imagem (opcional)</label>
+                <input
+                  name="image"
+                  type="url"
+                  placeholder="https://exemplo.com/imagem.png"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-colors"
+                />
+              </div>
+
+              <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descrição (opcional)</label>
                 <textarea
                   name="description"
@@ -661,13 +687,15 @@ function GroupCard({ group, onClick }: { group: Group, onClick: () => void, key?
         </div>
         <div className="absolute top-4 right-4 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm px-3 py-1 rounded-full flex items-center gap-1.5 shadow-sm">
           <Users className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-          <span className="text-xs font-bold text-gray-900 dark:text-white">{group.memberCount}</span>
+          <span className="text-xs font-bold text-gray-900 dark:text-white">
+            {group.memberCount} {group.memberCount === 1 ? 'membro' : 'membros'}
+          </span>
         </div>
       </div>
       <div className="p-6">
         <div className="flex items-start justify-between gap-2 mb-1">
           <h3 className="text-lg font-bold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate">{group.name}</h3>
-          <span className="text-[10px] font-mono text-gray-400 dark:text-gray-500">#{group.id}</span>
+          <span className="text-[10px] font-mono text-gray-400 dark:text-gray-500">{group.inviteCode}</span>
         </div>
         <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-1 mb-4">{group.description}</p>
 
@@ -761,18 +789,51 @@ function AdminDashboardView() {
 function GroupDetailView({ group, onBack, onLeave, user }: { group: Group, onBack: () => void, onLeave: (id: string) => void, user: User | null }) {
   const [activeSubTab, setActiveSubTab] = useState("destinations");
   const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
+
+  // Edit Image State
+  const [isEditImageModalOpen, setIsEditImageModalOpen] = useState(false);
+  const [newImageLink, setNewImageLink] = useState(group.image);
+  const [isSavingImage, setIsSavingImage] = useState(false);
+  const [currentGroupImage, setCurrentGroupImage] = useState(group.image);
 
   const copyId = () => {
-    navigator.clipboard.writeText(group.id);
-    alert("ID do grupo copiado!");
+    navigator.clipboard.writeText(group.inviteCode);
+    alert("Código do grupo copiado!");
   };
 
   const handleLeave = async () => {
+    setIsLeaving(true);
     try {
       await apiFetch(`/api/groups/${group.id}/leave`, { method: "DELETE" });
-    } catch (err) { console.error(err); }
-    onLeave(group.id);
-    setIsLeaveModalOpen(false);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLeaving(false);
+      setIsLeaveModalOpen(false);
+      onLeave(group.id);
+    }
+  };
+
+  const handleUpdateImage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingImage(true);
+    try {
+      const res = await apiFetch(`/api/groups/${group.id}/image`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: newImageLink }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setCurrentGroupImage(updated.image);
+        setIsEditImageModalOpen(false);
+      }
+    } catch (err) {
+      console.error("Erro ao atualizar imagem:", err);
+    } finally {
+      setIsSavingImage(false);
+    }
   };
 
   return (
@@ -795,7 +856,7 @@ function GroupDetailView({ group, onBack, onLeave, user }: { group: Group, onBac
             onClick={copyId}
             className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 px-4 py-2 rounded-xl text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all"
           >
-            ID: {group.id} <Plus className="w-3 h-3 rotate-45" />
+            Código: {group.inviteCode} <Plus className="w-3 h-3 rotate-45" />
           </button>
         </div>
       </div>
@@ -827,9 +888,10 @@ function GroupDetailView({ group, onBack, onLeave, user }: { group: Group, onBac
               <div className="flex flex-col gap-3">
                 <button
                   onClick={handleLeave}
-                  className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-xl transition-all"
+                  disabled={isLeaving}
+                  className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-red-100 dark:shadow-none transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
                 >
-                  Sim, Sair da Viagem
+                  {isLeaving ? <Loader2 className="w-5 h-5 animate-spin" /> : "Sim, Sair da Viagem"}
                 </button>
                 <button
                   onClick={() => setIsLeaveModalOpen(false)}
@@ -894,6 +956,15 @@ function GroupDetailView({ group, onBack, onLeave, user }: { group: Group, onBac
           >
             Custos
           </button>
+          <button
+            onClick={() => setActiveSubTab("members")}
+            className={cn(
+              "px-6 py-2 rounded-xl text-sm font-bold transition-all",
+              activeSubTab === "members" ? "bg-indigo-600 text-white shadow-md shadow-indigo-100 dark:shadow-none" : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+            )}
+          >
+            Membros
+          </button>
         </div>
       </div>
 
@@ -901,6 +972,71 @@ function GroupDetailView({ group, onBack, onLeave, user }: { group: Group, onBac
         {activeSubTab === "destinations" && <TripView groupId={group.id} />}
         {activeSubTab === "itinerary" && <ItineraryView groupId={group.id} />}
         {activeSubTab === "expenses" && <ExpenseList groupType={group.type} groupId={group.id} currentUserId={user?.id || ""} />}
+        {activeSubTab === "members" && <MembersView groupId={group.id} />}
+      </div>
+    </div>
+  );
+}
+
+function MembersView({ groupId }: { groupId: string }) {
+  const [members, setMembers] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchMembers = async () => {
+      setIsLoading(true);
+      try {
+        const res = await apiFetch(`/api/groups/${groupId}/members`);
+        if (res.ok) {
+          const data = await res.json();
+          setMembers(data);
+        }
+      } catch (err) {
+        console.error("Error fetching members:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchMembers();
+  }, [groupId]);
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 space-y-4">
+        <Loader2 className="w-10 h-10 animate-spin text-indigo-600" />
+        <p className="font-medium text-gray-500 dark:text-gray-400">Carregando membros...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Membros do Grupo</h2>
+          <p className="text-gray-500 dark:text-gray-400">Veja quem está participando desta viagem.</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {members.map(member => (
+          <div key={member.id} className="bg-white dark:bg-gray-900 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 flex items-center justify-between shadow-sm">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center font-bold text-indigo-600 dark:text-indigo-400 text-lg uppercase">
+                {member.name[0]}
+              </div>
+              <div>
+                <p className="font-bold text-gray-900 dark:text-white">{member.name}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">{member.email}</p>
+              </div>
+            </div>
+            {member.role === 'OWNER' && (
+              <span className="bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider">
+                Admin
+              </span>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );

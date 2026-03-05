@@ -26,6 +26,12 @@ export const TripView: React.FC<TripViewProps> = ({ groupId }) => {
   const [newImage, setNewImage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
+  // Edit Image State
+  const [isEditImageModalOpen, setIsEditImageModalOpen] = useState(false);
+  const [editingDestId, setEditingDestId] = useState<string | null>(null);
+  const [editImageLink, setEditImageLink] = useState("");
+  const [isSavingImage, setIsSavingImage] = useState(false);
+
   useEffect(() => {
     fetchDestinations();
   }, [groupId]);
@@ -93,10 +99,41 @@ export const TripView: React.FC<TripViewProps> = ({ groupId }) => {
     }
   };
 
+  const openEditImageModal = (destId: string, currentImage: string) => {
+    setEditingDestId(destId);
+    setEditImageLink(currentImage);
+    setIsEditImageModalOpen(true);
+  };
+
+  const handleUpdateImage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingDestId) return;
+    setIsSavingImage(true);
+    try {
+      const res = await apiFetch(`/api/destinations/${editingDestId}/image`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: editImageLink }),
+      });
+      if (res.ok) {
+        const updatedDest = await res.json();
+        setDestinations((prev) =>
+          prev.map((d) => (d.id === editingDestId ? { ...d, image: updatedDest.image } : d))
+        );
+        setIsEditImageModalOpen(false);
+      }
+    } catch (err) {
+      console.error("Error updating destination image:", err);
+    } finally {
+      setIsSavingImage(false);
+    }
+  };
+
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+      <div className="flex flex-col items-center justify-center py-20 space-y-4">
+        <Loader2 className="w-10 h-10 animate-spin text-indigo-600" />
+        <p className="font-medium text-gray-500 dark:text-gray-400">Carregando destinos...</p>
       </div>
     );
   }
@@ -131,10 +168,17 @@ export const TripView: React.FC<TripViewProps> = ({ groupId }) => {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
-              className="bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 overflow-hidden flex flex-col md:flex-row shadow-sm transition-colors"
+              className="bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 overflow-hidden flex flex-col md:flex-row shadow-sm transition-colors relative group/dest"
             >
-              <div className="md:w-1/3 h-48 md:h-auto overflow-hidden">
+              <div className="md:w-1/3 h-48 md:h-auto overflow-hidden relative">
                 <img src={dest.image} alt={dest.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                <button
+                  onClick={() => openEditImageModal(dest.id, dest.image)}
+                  className="absolute top-4 right-4 bg-black/50 hover:bg-black/70 backdrop-blur-md text-white p-2 rounded-full opacity-0 group-hover/dest:opacity-100 transition-all"
+                  title="Alterar Imagem"
+                >
+                  <ImageIcon className="w-4 h-4" />
+                </button>
               </div>
               <div className="p-6 flex-1 flex flex-col justify-between">
                 <div>
@@ -201,6 +245,30 @@ export const TripView: React.FC<TripViewProps> = ({ groupId }) => {
                 </div>
                 <button type="submit" disabled={isSaving} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-70">
                   {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : "Enviar Sugestão"}
+                </button>
+              </form>
+            </motion.div>
+          </div>
+        )}
+
+        {isEditImageModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsEditImageModalOpen(false)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="relative bg-white dark:bg-gray-900 w-full max-w-md rounded-3xl shadow-2xl p-8 transition-colors">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Alterar Capa do Destino</h2>
+                <button onClick={() => setIsEditImageModalOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"><X className="w-6 h-6 text-gray-400" /></button>
+              </div>
+              <form onSubmit={handleUpdateImage} className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nova URL da Imagem (opcional)</label>
+                  <div className="relative">
+                    <input type="url" value={editImageLink} onChange={(e) => setEditImageLink(e.target.value)} placeholder="Deixe em branco para usar o padrão" className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-colors" />
+                    <ImageIcon className="absolute left-3 top-3.5 w-4 h-4 text-gray-400" />
+                  </div>
+                </div>
+                <button type="submit" disabled={isSavingImage} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-70">
+                  {isSavingImage ? <Loader2 className="w-5 h-5 animate-spin" /> : "Salvar Alteração"}
                 </button>
               </form>
             </motion.div>

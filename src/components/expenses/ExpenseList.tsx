@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Wallet, Plus, ArrowUpRight, ArrowDownLeft, CheckCircle2, Clock, X, Users, ChevronDown, ChevronUp, Zap, Bell } from "lucide-react";
+import { Wallet, Plus, ArrowUpRight, ArrowDownLeft, CheckCircle2, Clock, X, Users, ChevronDown, ChevronUp, Zap, Bell, Loader2 } from "lucide-react";
 import { cn, formatCurrency } from "../../lib/utils";
 import { apiFetch } from "../../lib/api";
 
@@ -95,6 +95,7 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ groupType = "group", g
   const [description, setDescription] = useState("");
   const [totalAmount, setTotalAmount] = useState("");
   const [shouldSplit, setShouldSplit] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [payerAmounts, setPayerAmounts] = useState<Record<string, string>>(
     activeMembers.reduce((acc, m) => ({ ...acc, [m.id]: m.id === "me" ? "" : "0" }), {})
   );
@@ -146,6 +147,7 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ groupType = "group", g
       }));
 
     try {
+      setIsSubmitting(true);
       const res = await apiFetch(`/api/groups/${groupId}/expenses`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -165,6 +167,8 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ groupType = "group", g
       }
     } catch (err) {
       console.error("Error saving expense:", err);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -327,6 +331,15 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ groupType = "group", g
       console.error("Erro ao enviar notificação:", error);
     }
   };
+
+  if (isLoadingExpenses) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 space-y-4">
+        <Loader2 className="w-10 h-10 animate-spin text-indigo-600" />
+        <p className="font-medium text-gray-500 dark:text-gray-400">Carregando despesas...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -747,9 +760,10 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ groupType = "group", g
 
                 <button
                   type="submit"
-                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-100 dark:shadow-none transition-all"
+                  disabled={isSubmitting}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-100 dark:shadow-none transition-all flex justify-center items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
                 >
-                  Adicionar Despesa
+                  {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "Adicionar Despesa"}
                 </button>
               </form>
             </motion.div>

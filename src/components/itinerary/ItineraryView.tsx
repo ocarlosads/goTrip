@@ -228,7 +228,12 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId }) => {
   };
 
   if (isLoading) {
-    return <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+    return (
+      <div className="flex flex-col items-center justify-center py-20 space-y-4">
+        <Loader2 className="w-10 h-10 animate-spin text-indigo-600" />
+        <p className="font-medium text-gray-500 dark:text-gray-400">Carregando roteiro e logística...</p>
+      </div>
+    );
   }
 
   return (
