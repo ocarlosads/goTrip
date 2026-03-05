@@ -653,7 +653,7 @@ async function startServer() {
 
   // ─── Vite / Static ────────────────────────────────────────────────────────
   if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({ server: { middlewareMode: true }, appType: "spa" });
+    const vite = await createViteServer({ server: { middlewareMode: true, host: true }, appType: "spa" });
     app.use(vite.middlewares);
   } else {
     app.use(express.static(path.join(__dirname, "dist")));
@@ -661,7 +661,9 @@ async function startServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`goTrip Server running on http://localhost:${PORT}`);
+    console.log(`goTrip Server running on:`);
+    console.log(`- Local:   http://localhost:${PORT}`);
+    console.log(`- Network: http://10.0.105.209:${PORT}`);
   });
 }
 
