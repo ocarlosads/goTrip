@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { Wallet, Plus, ArrowUpRight, ArrowDownLeft, CheckCircle2, Clock, X, Users, ChevronDown, ChevronUp, Zap, Bell, Loader2 } from "lucide-react";
 import { cn, formatCurrency } from "../../lib/utils";
 import { apiFetch } from "../../lib/api";
+import { useToast } from "../../context/ToastContext";
 
 interface Split {
   userId: string;
@@ -325,7 +326,8 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ groupType = "group", g
         })
       });
       if (response.ok) {
-        alert(`Notificação enviada para ${from}!`);
+        const { showToast } = useToast();
+        showToast(`Notificação enviada para ${from}!`, "success");
       }
     } catch (error) {
       console.error("Erro ao enviar notificação:", error);

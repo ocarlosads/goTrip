@@ -8,6 +8,7 @@ import { Loader2, Plus, Users, MapPin, Wallet, Settings, LogOut, Menu, X, ArrowL
 import { motion, AnimatePresence } from "motion/react";
 import { cn, formatCurrency } from "./lib/utils";
 import { apiFetch, setAuthToken, removeAuthToken } from "./lib/api";
+import { ToastProvider, useToast } from "./context/ToastContext";
 
 interface User {
   email: string;
@@ -105,8 +106,34 @@ export default function App() {
   }
 
   return (
+    <ToastProvider>
+      <AppContent
+        user={user}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        selectedGroup={selectedGroup}
+        setSelectedGroup={setSelectedGroup}
+        isMobileMenuOpen={isMobileMenuOpen}
+        setIsMobileMenuOpen={setIsMobileMenuOpen}
+        isDarkMode={isDarkMode}
+        setIsDarkMode={setIsDarkMode}
+        toggleDarkMode={toggleDarkMode}
+        handleLogout={handleLogout}
+        isAdmin={isAdmin}
+      />
+    </ToastProvider>
+  );
+}
+
+function AppContent({
+  user, activeTab, setActiveTab, selectedGroup, setSelectedGroup,
+  isMobileMenuOpen, setIsMobileMenuOpen, isDarkMode, setIsDarkMode,
+  toggleDarkMode, handleLogout, isAdmin
+}: any) {
+  const { showToast } = useToast();
+
+  return (
     <div className="min-h-screen bg-[#F9FAFB] dark:bg-gray-950 flex flex-col md:flex-row transition-colors duration-300">
-      {/* Sidebar Desktop */}
       <aside className="hidden md:flex flex-col w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 p-6 sticky top-0 h-screen transition-colors">
         <div className="flex items-center justify-between mb-10">
           <div className="flex items-center gap-3">
@@ -329,7 +356,7 @@ export default function App() {
           )}
         </div>
       </main>
-    </div>
+    </div >
   );
 }
 
@@ -351,11 +378,23 @@ function NavItem({ icon, label, active, onClick }: { icon: React.ReactNode, labe
 }
 
 function DashboardView({ onSelectGroup, user }: { onSelectGroup: (g: Group) => void, user: User | null }) {
+  const { showToast } = useToast();
   const [groups, setGroups] = useState<Group[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
   const [joinId, setJoinId] = useState("");
+  const [isJoining, setIsJoining] = useState(false);
+
+  // Auto-join from URL (?join=CODE)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('join');
+    if (code && user) {
+      setJoinId(code.toUpperCase());
+      setIsJoinModalOpen(true);
+    }
+  }, [user]);
 
   // Load groups from API
   useEffect(() => {
@@ -407,10 +446,11 @@ function DashboardView({ onSelectGroup, user }: { onSelectGroup: (g: Group) => v
     }
   };
 
-  const handleJoinGroup = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleJoinGroup = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!joinId) return;
 
+    setIsJoining(true);
     try {
       const res = await apiFetch(`/api/groups/join/${joinId}`, {
         method: "POST"
@@ -418,7 +458,6 @@ function DashboardView({ onSelectGroup, user }: { onSelectGroup: (g: Group) => v
 
       if (res.ok) {
         const data = await res.json();
-        // Refresh the list
         const listRes = await apiFetch("/api/groups");
         if (listRes.ok) {
           const groupsData = await listRes.json();
@@ -427,13 +466,21 @@ function DashboardView({ onSelectGroup, user }: { onSelectGroup: (g: Group) => v
 
         setIsJoinModalOpen(false);
         setJoinId("");
-        alert(`Você entrou no grupo ${data.group.name}!`);
+
+        // Limpar URL param
+        const url = new URL(window.location.href);
+        url.searchParams.delete('join');
+        window.history.replaceState({}, '', url);
+
+        showToast(`Você entrou no grupo ${data.group.name}!`, "success");
       } else {
         const errorData = await res.json();
-        alert(errorData.error || "Grupo não encontrado ou código inválido.");
+        showToast(errorData.error || "Grupo não encontrado ou código inválido.", "error");
       }
     } catch (err) {
       console.error("Error joining group:", err);
+    } finally {
+      setIsJoining(false);
     }
   };
 
@@ -482,7 +529,7 @@ function DashboardView({ onSelectGroup, user }: { onSelectGroup: (g: Group) => v
 
         {/* Modals will be rendered below */}
         <CreateGroupModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} onSubmit={handleCreateGroup} />
-        <JoinGroupModal isOpen={isJoinModalOpen} onClose={() => setIsJoinModalOpen(false)} onJoin={handleJoinGroup} joinId={joinId} setJoinId={setJoinId} />
+        <JoinGroupModal isOpen={isJoinModalOpen} onClose={() => setIsJoinModalOpen(false)} onJoin={handleJoinGroup} joinId={joinId} setJoinId={setJoinId} isJoining={isJoining} />
       </div>
     );
   }
@@ -517,7 +564,7 @@ function DashboardView({ onSelectGroup, user }: { onSelectGroup: (g: Group) => v
       </div>
 
       <CreateGroupModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} onSubmit={handleCreateGroup} />
-      <JoinGroupModal isOpen={isJoinModalOpen} onClose={() => setIsJoinModalOpen(false)} onJoin={handleJoinGroup} joinId={joinId} setJoinId={setJoinId} />
+      <JoinGroupModal isOpen={isJoinModalOpen} onClose={() => setIsJoinModalOpen(false)} onJoin={handleJoinGroup} joinId={joinId} setJoinId={setJoinId} isJoining={isJoining} />
     </div>
   );
 }
@@ -613,7 +660,7 @@ function CreateGroupModal({ isOpen, onClose, onSubmit }: { isOpen: boolean, onCl
   );
 }
 
-function JoinGroupModal({ isOpen, onClose, onJoin, joinId, setJoinId }: { isOpen: boolean, onClose: () => void, onJoin: (e: React.FormEvent) => void, joinId: string, setJoinId: (v: string) => void }) {
+function JoinGroupModal({ isOpen, onClose, onJoin, joinId, setJoinId, isJoining }: { isOpen: boolean, onClose: () => void, onJoin: (e: React.FormEvent) => void, joinId: string, setJoinId: (v: string) => void, isJoining: boolean }) {
   return (
     <AnimatePresence>
       {isOpen && (
@@ -651,8 +698,18 @@ function JoinGroupModal({ isOpen, onClose, onJoin, joinId, setJoinId }: { isOpen
                 />
               </div>
 
-              <button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-100 dark:shadow-none transition-all">
-                Entrar na Viagem
+              <button
+                disabled={isJoining}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-100 dark:shadow-none transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+              >
+                {isJoining ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Entrando...
+                  </>
+                ) : (
+                  "Entrar na Viagem"
+                )}
               </button>
             </form>
           </motion.div>
@@ -787,6 +844,7 @@ function AdminDashboardView() {
 }
 
 function GroupDetailView({ group, onBack, onLeave, user }: { group: Group, onBack: () => void, onLeave: (id: string) => void, user: User | null }) {
+  const { showToast } = useToast();
   const [activeSubTab, setActiveSubTab] = useState("destinations");
   const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
@@ -799,7 +857,7 @@ function GroupDetailView({ group, onBack, onLeave, user }: { group: Group, onBac
 
   const copyId = () => {
     navigator.clipboard.writeText(group.inviteCode);
-    alert("Código do grupo copiado!");
+    showToast("Código do grupo copiado!", "success");
   };
 
   const handleLeave = async () => {

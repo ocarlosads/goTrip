@@ -11,9 +11,11 @@ model User {
   id            String       @id @default(cuid())
   name          String?
   email         String       @unique
-  emailVerified DateTime?
-  password      String?      // Hash da senha para login por e-mail
-  googleId      String?      @unique // ID do Google para login social
+  emailVerified     DateTime?
+  isVerified        Boolean      @default(false)
+  verificationToken String?
+  password          String?      // Hash da senha para login por e-mail
+  googleId          String?      @unique // ID do Google para login social
   image         String?
   plan          String       @default("FREE") // FREE, PRO, PRO_ANNUAL
   createdAt     DateTime     @default(now())
@@ -148,4 +150,13 @@ model ExpenseSplit {
   user      User     @relation(fields: [userId], references: [id])
 
   @@unique([expenseId, userId])
+}
+
+model PendingUser {
+  id                String   @id @default(cuid())
+  email             String   @unique
+  name              String
+  password          String   // Hashed password
+  verificationToken String
+  createdAt         DateTime @default(now())
 }

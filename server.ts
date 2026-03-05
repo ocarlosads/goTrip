@@ -5,8 +5,11 @@ import { fileURLToPath } from "url";
 import cookieParser from "cookie-parser";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
+import { Resend } from "resend";
 import { OAuth2Client } from "google-auth-library";
 import { prisma } from "./src/lib/prisma";
+
+const resend = new Resend("re_ZVRXdGN8_LZXvgcV957hozut5n1z14c6q");
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -18,6 +21,9 @@ const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 async function startServer() {
   const app = express();
   const PORT = 3000;
+  console.log("==================================================");
+  console.log("!!! SERVER VERSION 5.0 - EMAIL VERIFICATION ON !!!");
+  console.log("==================================================");
 
   // CORS Manual
   app.use((req, res, next) => {
@@ -31,15 +37,6 @@ async function startServer() {
 
   app.use(express.json());
   app.use(cookieParser());
-
-  // Log de Depuração de Requisições GERAL
-  app.use((req, res, next) => {
-    console.log(`>>> [SERVER] ${req.method} ${req.url}`);
-    if (req.body && Object.keys(req.body).length > 0) {
-      console.log(`    [BODY]`, JSON.stringify(req.body).substring(0, 50));
-    }
-    next();
-  });
 
   console.log("DATABASE_URL defined:", !!process.env.DATABASE_URL);
   if (process.env.DATABASE_URL) {
@@ -77,16 +74,66 @@ async function startServer() {
       if (existing) return res.status(400).json({ error: "E-mail já cadastrado" });
 
       const hashedPassword = await bcrypt.hash(password, 10);
-      const user = await prisma.user.create({
-        data: { email, password: hashedPassword, name: name || email.split("@")[0] }
+      const verificationToken = Math.floor(100000 + Math.random() * 900000).toString();
+
+      // Criar em PendingUser (NÃO cria conta real ainda)
+      await prisma.pendingUser.upsert({
+        where: { email },
+        update: { password: hashedPassword, name: name || email.split("@")[0], verificationToken },
+        create: { email, password: hashedPassword, name: name || email.split("@")[0], verificationToken }
       });
 
-      const token = jwt.sign({ email: user.email, id: user.id }, JWT_SECRET, { expiresIn: "7d" });
-      res.cookie("auth_token", token, { httpOnly: true, secure: false, sameSite: "lax", maxAge: 7 * 24 * 60 * 60 * 1000 });
-      res.json({ user: { email: user.email, id: user.id }, token });
+      // Enviar e-mail via Resend
+      try {
+        console.log(`[RESEND] Tentando enviar e-mail para: ${email}`);
+        const { error: resendError } = await resend.emails.send({
+          from: "CheckTrip <onboarding@resend.dev>",
+          to: email,
+          subject: "Verifique seu e-mail - CheckTrip",
+          html: `<p>Seu código de verificação é: <strong>${verificationToken}</strong></p>`
+        });
+        if (resendError) console.error("[RESEND ERROR]", resendError);
+      } catch (emailErr: any) {
+        console.error("Erro fatal ao enviar e-mail:", emailErr.message);
+      }
+
+      console.log(`[AUTH] Código de verificação para ${email}: ${verificationToken}`);
+      res.json({ message: "Código enviado!", email });
     } catch (err) {
       console.error("Register error:", err);
-      res.status(500).json({ error: "Erro ao criar conta" });
+      res.status(500).json({ error: "Erro ao iniciar cadastro" });
+    }
+  });
+
+  app.post("/api/auth/verify-email", async (req, res) => {
+    const { email, token } = req.body;
+    try {
+      const pending = await prisma.pendingUser.findUnique({ where: { email } });
+      if (!pending) return res.status(404).json({ error: "Cadastro expirado ou não encontrado" });
+
+      if (pending.verificationToken === token) {
+        // Criar CONTA REAL agora!
+        const user = await prisma.user.create({
+          data: {
+            email: pending.email,
+            password: pending.password,
+            name: pending.name,
+            isVerified: true
+          }
+        });
+
+        // Deletar pendente
+        await prisma.pendingUser.delete({ where: { email } });
+
+        const authToken = jwt.sign({ email: user.email, id: user.id }, JWT_SECRET, { expiresIn: "7d" });
+        res.cookie("auth_token", authToken, { httpOnly: true, secure: false, sameSite: "lax", maxAge: 7 * 24 * 60 * 60 * 1000 });
+        return res.json({ success: true, user: { email: user.email, id: user.id }, token: authToken });
+      } else {
+        return res.status(400).json({ error: "Código de verificação inválido" });
+      }
+    } catch (err) {
+      console.error("Verify error:", err);
+      res.status(500).json({ error: "Erro ao verificar e-mail" });
     }
   });
 
@@ -99,6 +146,10 @@ async function startServer() {
       if (user.password) {
         const valid = await bcrypt.compare(password, user.password);
         if (!valid) return res.status(401).json({ error: "E-mail ou senha inválidos" });
+
+        if (!user.isVerified) {
+          return res.status(403).json({ error: "E-mail não verificado", needsVerification: true, email: user.email });
+        }
       } else if (!user.googleId) {
         return res.status(400).json({ error: "Esta conta usa outro método de login" });
       }
@@ -113,17 +164,13 @@ async function startServer() {
   });
 
   app.post("/api/auth/google", async (req, res) => {
-    console.log("[GOOGLE AUTH] Request recebida no servidor!");
-    console.log("[GOOGLE AUTH] Body:", JSON.stringify(req.body).substring(0, 100));
     const { credential } = req.body;
-    console.log("[GOOGLE AUTH] Recebido token. Tamanho:", credential?.length || 0);
     try {
       const ticket = await googleClient.verifyIdToken({
         idToken: credential,
         audience: GOOGLE_CLIENT_ID,
       });
       const payload = ticket.getPayload();
-      console.log("[GOOGLE AUTH] Payload extraído com sucesso:", payload?.email);
       if (!payload) throw new Error("Invalid google token");
 
       const { email, sub: googleId, name, picture } = payload;
