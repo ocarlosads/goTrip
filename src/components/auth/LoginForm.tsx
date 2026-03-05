@@ -4,7 +4,7 @@ import { Plane, Mail, ArrowRight, Loader2 } from "lucide-react";
 import { cn } from "../../lib/utils";
 
 interface LoginFormProps {
-  onLogin: (email: string, token: string) => void;
+  onLogin: (email: string, token: string, userId?: string) => void;
 }
 
 export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
@@ -23,13 +23,13 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
       });
-      
+
       if (res.ok) {
         const data = await res.json();
         setIsSent(true);
-        // Em um app real, esperaríamos o magic link. 
+        // Em um app real, esperaríamos o magic link.
         // Para o demo, vamos logar direto após 1.5s
-        setTimeout(() => onLogin(email, data.token), 1500);
+        setTimeout(() => onLogin(email, data.token, data.user?.id), 1500);
       }
     } catch (error) {
       console.error("Erro ao fazer login:", error);
@@ -40,7 +40,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
 
   return (
     <div className="min-h-screen bg-[#F9FAFB] dark:bg-gray-950 flex flex-col items-center justify-center p-4 transition-colors">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-md bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-black/5 dark:border-white/5 p-8 transition-colors"
@@ -58,7 +58,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
         </div>
 
         {isSent ? (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-900/30 text-emerald-700 dark:text-emerald-400 p-4 rounded-xl text-center"

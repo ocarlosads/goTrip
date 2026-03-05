@@ -9,9 +9,9 @@ import { motion, AnimatePresence } from "motion/react";
 import { cn, formatCurrency } from "./lib/utils";
 import { apiFetch, setAuthToken, removeAuthToken } from "./lib/api";
 
-// Mock types
 interface User {
   email: string;
+  id?: string;
 }
 
 interface Group {
@@ -33,7 +33,7 @@ export default function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('theme') === 'dark' || 
+      return localStorage.getItem('theme') === 'dark' ||
         (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
     }
     return false;
@@ -68,9 +68,18 @@ export default function App() {
     }
   }, [isDarkMode]);
 
-  const handleLogin = (email: string, token: string) => {
+  const handleLogin = async (email: string, token: string, userId?: string) => {
     setAuthToken(token);
-    setUser({ email });
+    if (userId) {
+      setUser({ email, id: userId });
+    } else {
+      // Fetch user ID from /api/auth/me
+      try {
+        const res = await apiFetch("/api/auth/me");
+        if (res.ok) { const d = await res.json(); setUser(d.user); }
+        else setUser({ email });
+      } catch { setUser({ email }); }
+    }
   };
 
   const handleLogout = async () => {
@@ -104,7 +113,7 @@ export default function App() {
             </div>
             <span className="text-xl font-bold text-gray-900 dark:text-white">CheckTrip</span>
           </div>
-          <button 
+          <button
             onClick={toggleDarkMode}
             className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-all"
           >
@@ -113,42 +122,42 @@ export default function App() {
         </div>
 
         <nav className="flex-1 space-y-2">
-          <NavItem 
-            icon={<Users className="w-5 h-5" />} 
-            label="Meus Grupos" 
-            active={activeTab === "groups"} 
-            onClick={() => { setActiveTab("groups"); setSelectedGroup(null); }} 
+          <NavItem
+            icon={<Users className="w-5 h-5" />}
+            label="Meus Grupos"
+            active={activeTab === "groups"}
+            onClick={() => { setActiveTab("groups"); setSelectedGroup(null); }}
           />
-          <NavItem 
-            icon={<MapPin className="w-5 h-5" />} 
-            label="Destinos" 
-            active={activeTab === "destinations"} 
-            onClick={() => setActiveTab("destinations")} 
+          <NavItem
+            icon={<MapPin className="w-5 h-5" />}
+            label="Destinos"
+            active={activeTab === "destinations"}
+            onClick={() => setActiveTab("destinations")}
           />
-          <NavItem 
-            icon={<Wallet className="w-5 h-5" />} 
-            label="Finanças" 
-            active={activeTab === "finance"} 
-            onClick={() => setActiveTab("finance")} 
+          <NavItem
+            icon={<Wallet className="w-5 h-5" />}
+            label="Finanças"
+            active={activeTab === "finance"}
+            onClick={() => setActiveTab("finance")}
           />
-          <NavItem 
-            icon={<CreditCard className="w-5 h-5" />} 
-            label="Planos" 
-            active={activeTab === "pricing"} 
-            onClick={() => setActiveTab("pricing")} 
+          <NavItem
+            icon={<CreditCard className="w-5 h-5" />}
+            label="Planos"
+            active={activeTab === "pricing"}
+            onClick={() => setActiveTab("pricing")}
           />
-          <NavItem 
-            icon={<Settings className="w-5 h-5" />} 
-            label="Configurações" 
-            active={activeTab === "settings"} 
-            onClick={() => setActiveTab("settings")} 
+          <NavItem
+            icon={<Settings className="w-5 h-5" />}
+            label="Configurações"
+            active={activeTab === "settings"}
+            onClick={() => setActiveTab("settings")}
           />
           {isAdmin && (
-            <NavItem 
-              icon={<Shield className="w-5 h-5" />} 
-              label="Painel Admin" 
-              active={activeTab === "admin"} 
-              onClick={() => setActiveTab("admin")} 
+            <NavItem
+              icon={<Shield className="w-5 h-5" />}
+              label="Painel Admin"
+              active={activeTab === "admin"}
+              onClick={() => setActiveTab("admin")}
             />
           )}
         </nav>
@@ -163,7 +172,7 @@ export default function App() {
               <p className="text-xs text-gray-500 dark:text-gray-400">Plano Free</p>
             </div>
           </div>
-          <button 
+          <button
             onClick={handleLogout}
             className="flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors w-full px-2 py-2 text-sm font-medium"
           >
@@ -181,7 +190,7 @@ export default function App() {
           <span className="font-bold text-gray-900 dark:text-white">CheckTrip</span>
         </div>
         <div className="flex items-center gap-2">
-          <button 
+          <button
             onClick={toggleDarkMode}
             className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-all"
           >
@@ -196,40 +205,40 @@ export default function App() {
       {/* Mobile Menu */}
       <AnimatePresence>
         {isMobileMenuOpen && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             className="md:hidden fixed inset-0 top-[65px] bg-white dark:bg-gray-900 z-40 p-6 flex flex-col transition-colors"
           >
             <nav className="space-y-4">
-              <NavItem 
-                icon={<Users className="w-5 h-5" />} 
-                label="Meus Grupos" 
-                active={activeTab === "groups"} 
-                onClick={() => { setActiveTab("groups"); setSelectedGroup(null); setIsMobileMenuOpen(false); }} 
+              <NavItem
+                icon={<Users className="w-5 h-5" />}
+                label="Meus Grupos"
+                active={activeTab === "groups"}
+                onClick={() => { setActiveTab("groups"); setSelectedGroup(null); setIsMobileMenuOpen(false); }}
               />
-              <NavItem 
-                icon={<MapPin className="w-5 h-5" />} 
-                label="Destinos" 
-                active={activeTab === "destinations"} 
-                onClick={() => { setActiveTab("destinations"); setIsMobileMenuOpen(false); }} 
+              <NavItem
+                icon={<MapPin className="w-5 h-5" />}
+                label="Destinos"
+                active={activeTab === "destinations"}
+                onClick={() => { setActiveTab("destinations"); setIsMobileMenuOpen(false); }}
               />
-              <NavItem 
-                icon={<Wallet className="w-5 h-5" />} 
-                label="Finanças" 
-                active={activeTab === "finance"} 
-                onClick={() => { setActiveTab("finance"); setIsMobileMenuOpen(false); }} 
+              <NavItem
+                icon={<Wallet className="w-5 h-5" />}
+                label="Finanças"
+                active={activeTab === "finance"}
+                onClick={() => { setActiveTab("finance"); setIsMobileMenuOpen(false); }}
               />
-              <NavItem 
-                icon={<Settings className="w-5 h-5" />} 
-                label="Configurações" 
-                active={activeTab === "settings"} 
-                onClick={() => { setActiveTab("settings"); setIsMobileMenuOpen(false); }} 
+              <NavItem
+                icon={<Settings className="w-5 h-5" />}
+                label="Configurações"
+                active={activeTab === "settings"}
+                onClick={() => { setActiveTab("settings"); setIsMobileMenuOpen(false); }}
               />
             </nav>
             <div className="mt-auto pt-6 border-t border-gray-100 dark:border-gray-800">
-              <button 
+              <button
                 onClick={handleLogout}
                 className="flex items-center gap-2 text-red-600 dark:text-red-400 w-full py-3 font-medium"
               >
@@ -246,20 +255,13 @@ export default function App() {
           {activeTab === "groups" && !selectedGroup && (
             <DashboardView onSelectGroup={setSelectedGroup} user={user} />
           )}
-          
+
           {selectedGroup && (
-            <GroupDetailView 
-              group={selectedGroup} 
-              onBack={() => setSelectedGroup(null)} 
-              onLeave={(id) => {
-                const savedGroups = localStorage.getItem('checktrip_groups');
-                if (savedGroups) {
-                  const groups = JSON.parse(savedGroups) as Group[];
-                  const updatedGroups = groups.filter(g => g.id !== id);
-                  localStorage.setItem('checktrip_groups', JSON.stringify(updatedGroups));
-                }
-                setSelectedGroup(null);
-              }}
+            <GroupDetailView
+              group={selectedGroup}
+              user={user}
+              onBack={() => setSelectedGroup(null)}
+              onLeave={(id) => { setSelectedGroup(null); }}
             />
           )}
 
@@ -280,9 +282,9 @@ export default function App() {
                     <Moon className="w-5 h-5 text-indigo-600 dark:text-indigo-400" /> Preferências de Tema
                   </h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Escolha entre o modo claro ou escuro para a interface do aplicativo.</p>
-                  
+
                   <div className="flex p-1 bg-gray-100 dark:bg-gray-800 rounded-2xl w-fit transition-colors">
-                    <button 
+                    <button
                       onClick={() => setIsDarkMode(false)}
                       className={cn(
                         "flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all",
@@ -291,7 +293,7 @@ export default function App() {
                     >
                       <Sun className="w-4 h-4" /> Claro
                     </button>
-                    <button 
+                    <button
                       onClick={() => setIsDarkMode(true)}
                       className={cn(
                         "flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all",
@@ -331,12 +333,12 @@ export default function App() {
 
 function NavItem({ icon, label, active, onClick }: { icon: React.ReactNode, label: string, active: boolean, onClick: () => void }) {
   return (
-    <button 
+    <button
       onClick={onClick}
       className={cn(
         "flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm font-medium transition-all",
-        active 
-          ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400" 
+        active
+          ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400"
           : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white"
       )}
     >
@@ -380,7 +382,7 @@ function DashboardView({ onSelectGroup, user }: { onSelectGroup: (g: Group) => v
     const name = formData.get('name') as string;
     const description = formData.get('description') as string;
     const type = formData.get('type') as "solo" | "couple" | "group";
-    
+
     try {
       const res = await apiFetch("/api/groups", {
         method: "POST",
@@ -401,12 +403,12 @@ function DashboardView({ onSelectGroup, user }: { onSelectGroup: (g: Group) => v
   const handleJoinGroup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!joinId) return;
-    
+
     try {
       const res = await apiFetch(`/api/groups/join/${joinId}`, {
         method: "POST"
       });
-      
+
       if (res.ok) {
         const data = await res.json();
         // Refresh the list
@@ -415,7 +417,7 @@ function DashboardView({ onSelectGroup, user }: { onSelectGroup: (g: Group) => v
           const groupsData = await listRes.json();
           setGroups(groupsData);
         }
-        
+
         setIsJoinModalOpen(false);
         setJoinId("");
         alert(`Você entrou no grupo ${data.group.name}!`);
@@ -431,7 +433,7 @@ function DashboardView({ onSelectGroup, user }: { onSelectGroup: (g: Group) => v
   if (groups.length === 0) {
     return (
       <div className="min-h-[70vh] flex flex-col items-center justify-center text-center px-4">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           className="bg-white dark:bg-gray-900 p-10 rounded-[40px] border border-gray-100 dark:border-gray-800 shadow-xl max-w-2xl w-full transition-colors"
@@ -443,16 +445,16 @@ function DashboardView({ onSelectGroup, user }: { onSelectGroup: (g: Group) => v
           <p className="text-gray-500 dark:text-gray-400 text-lg mb-10 max-w-md mx-auto">
             Sua jornada começa aqui. Crie um novo planejamento ou entre em um grupo existente usando um ID.
           </p>
-          
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <button 
+            <button
               onClick={() => setIsCreateModalOpen(true)}
               className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-5 rounded-2xl shadow-lg shadow-indigo-100 dark:shadow-none transition-all flex flex-col items-center gap-2"
             >
               <Plus className="w-6 h-6" />
               <span>Criar Nova Viagem</span>
             </button>
-            <button 
+            <button
               onClick={() => setIsJoinModalOpen(true)}
               className="bg-white dark:bg-gray-800 border-2 border-gray-100 dark:border-gray-700 hover:border-indigo-600 dark:hover:border-indigo-500 text-gray-900 dark:text-white font-bold py-5 rounded-2xl transition-all flex flex-col items-center gap-2"
             >
@@ -477,13 +479,13 @@ function DashboardView({ onSelectGroup, user }: { onSelectGroup: (g: Group) => v
           <p className="text-gray-500 dark:text-gray-400 mt-1">Você tem {groups.length} planejamentos ativos.</p>
         </div>
         <div className="flex items-center gap-3">
-          <button 
+          <button
             onClick={() => setIsJoinModalOpen(true)}
             className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 font-semibold px-6 py-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-all flex items-center gap-2"
           >
             <Users className="w-5 h-5" /> Entrar com ID
           </button>
-          <button 
+          <button
             onClick={() => setIsCreateModalOpen(true)}
             className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-3 rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm"
           >
@@ -509,14 +511,14 @@ function CreateGroupModal({ isOpen, onClose, onSubmit }: { isOpen: boolean, onCl
     <AnimatePresence>
       {isOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
           />
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -532,15 +534,15 @@ function CreateGroupModal({ isOpen, onClose, onSubmit }: { isOpen: boolean, onCl
             <form className="space-y-6" onSubmit={onSubmit}>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome da Viagem</label>
-                <input 
+                <input
                   name="name"
-                  type="text" 
-                  placeholder="Ex: Carnaval em Salvador" 
+                  type="text"
+                  placeholder="Ex: Carnaval em Salvador"
                   className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-colors"
                   required
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tipo de Viagem</label>
                 <div className="grid grid-cols-3 gap-3">
@@ -567,13 +569,13 @@ function CreateGroupModal({ isOpen, onClose, onSubmit }: { isOpen: boolean, onCl
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descrição (opcional)</label>
-                <textarea 
+                <textarea
                   name="description"
-                  placeholder="Conte um pouco sobre os planos..." 
+                  placeholder="Conte um pouco sobre os planos..."
                   className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none h-24 resize-none transition-colors"
                 />
               </div>
-              
+
               <button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-100 dark:shadow-none transition-all">
                 Criar Viagem
               </button>
@@ -590,14 +592,14 @@ function JoinGroupModal({ isOpen, onClose, onJoin, joinId, setJoinId }: { isOpen
     <AnimatePresence>
       {isOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
           />
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -613,16 +615,16 @@ function JoinGroupModal({ isOpen, onClose, onJoin, joinId, setJoinId }: { isOpen
             <form className="space-y-6" onSubmit={onJoin}>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ID da Viagem</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={joinId}
                   onChange={(e) => setJoinId(e.target.value.toUpperCase())}
-                  placeholder="Ex: ABC-123" 
+                  placeholder="Ex: ABC-123"
                   className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none text-center font-mono text-xl tracking-widest transition-colors"
                   required
                 />
               </div>
-              
+
               <button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-100 dark:shadow-none transition-all">
                 Entrar na Viagem
               </button>
@@ -642,15 +644,15 @@ function GroupCard({ group, onClick }: { group: Group, onClick: () => void, key?
   };
 
   return (
-    <motion.div 
+    <motion.div
       whileHover={{ y: -4 }}
       onClick={onClick}
       className="bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden group cursor-pointer transition-colors"
     >
       <div className="h-40 overflow-hidden relative">
-        <img 
-          src={group.image} 
-          alt={group.name} 
+        <img
+          src={group.image}
+          alt={group.name}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           referrerPolicy="no-referrer"
         />
@@ -668,7 +670,7 @@ function GroupCard({ group, onClick }: { group: Group, onClick: () => void, key?
           <span className="text-[10px] font-mono text-gray-400 dark:text-gray-500">#{group.id}</span>
         </div>
         <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-1 mb-4">{group.description}</p>
-        
+
         <div className="flex items-center justify-between pt-4 border-t border-gray-50 dark:border-gray-800">
           <div className="flex flex-col">
             <span className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500">Seu Saldo</span>
@@ -756,7 +758,7 @@ function AdminDashboardView() {
   );
 }
 
-function GroupDetailView({ group, onBack, onLeave }: { group: Group, onBack: () => void, onLeave: (id: string) => void }) {
+function GroupDetailView({ group, onBack, onLeave, user }: { group: Group, onBack: () => void, onLeave: (id: string) => void, user: User | null }) {
   const [activeSubTab, setActiveSubTab] = useState("destinations");
   const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
 
@@ -765,7 +767,10 @@ function GroupDetailView({ group, onBack, onLeave }: { group: Group, onBack: () 
     alert("ID do grupo copiado!");
   };
 
-  const handleLeave = () => {
+  const handleLeave = async () => {
+    try {
+      await apiFetch(`/api/groups/${group.id}/leave`, { method: "DELETE" });
+    } catch (err) { console.error(err); }
     onLeave(group.id);
     setIsLeaveModalOpen(false);
   };
@@ -773,20 +778,20 @@ function GroupDetailView({ group, onBack, onLeave }: { group: Group, onBack: () 
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
-        <button 
+        <button
           onClick={onBack}
           className="flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors font-medium"
         >
           <ArrowLeft className="w-4 h-4" /> Voltar para Viagens
         </button>
         <div className="flex items-center gap-2">
-          <button 
+          <button
             onClick={() => setIsLeaveModalOpen(true)}
             className="flex items-center gap-2 bg-red-50 dark:bg-red-900/20 px-4 py-2 rounded-xl text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 transition-all border border-red-100 dark:border-red-900/30"
           >
             <LogOut className="w-3.5 h-3.5" /> Sair da Viagem
           </button>
-          <button 
+          <button
             onClick={copyId}
             className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 px-4 py-2 rounded-xl text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all"
           >
@@ -799,14 +804,14 @@ function GroupDetailView({ group, onBack, onLeave }: { group: Group, onBack: () 
       <AnimatePresence>
         {isLeaveModalOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsLeaveModalOpen(false)}
               className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             />
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -820,13 +825,13 @@ function GroupDetailView({ group, onBack, onLeave }: { group: Group, onBack: () 
                 Você perderá o acesso a este planejamento. Para voltar, precisará do ID novamente.
               </p>
               <div className="flex flex-col gap-3">
-                <button 
+                <button
                   onClick={handleLeave}
                   className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-xl transition-all"
                 >
                   Sim, Sair da Viagem
                 </button>
-                <button 
+                <button
                   onClick={() => setIsLeaveModalOpen(false)}
                   className="w-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-bold py-4 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition-all"
                 >
@@ -860,9 +865,9 @@ function GroupDetailView({ group, onBack, onLeave }: { group: Group, onBack: () 
             </div>
           </div>
         </div>
-        
+
         <div className="flex bg-white dark:bg-gray-900 p-1 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm transition-colors">
-          <button 
+          <button
             onClick={() => setActiveSubTab("destinations")}
             className={cn(
               "px-6 py-2 rounded-xl text-sm font-bold transition-all",
@@ -871,7 +876,7 @@ function GroupDetailView({ group, onBack, onLeave }: { group: Group, onBack: () 
           >
             Destinos
           </button>
-          <button 
+          <button
             onClick={() => setActiveSubTab("itinerary")}
             className={cn(
               "px-6 py-2 rounded-xl text-sm font-bold transition-all",
@@ -880,7 +885,7 @@ function GroupDetailView({ group, onBack, onLeave }: { group: Group, onBack: () 
           >
             Roteiro
           </button>
-          <button 
+          <button
             onClick={() => setActiveSubTab("expenses")}
             className={cn(
               "px-6 py-2 rounded-xl text-sm font-bold transition-all",
@@ -893,9 +898,9 @@ function GroupDetailView({ group, onBack, onLeave }: { group: Group, onBack: () 
       </div>
 
       <div className="pt-4">
-        {activeSubTab === "destinations" && <TripView />}
-        {activeSubTab === "itinerary" && <ItineraryView />}
-        {activeSubTab === "expenses" && <ExpenseList groupType={group.type} groupId={group.id} />}
+        {activeSubTab === "destinations" && <TripView groupId={group.id} />}
+        {activeSubTab === "itinerary" && <ItineraryView groupId={group.id} />}
+        {activeSubTab === "expenses" && <ExpenseList groupType={group.type} groupId={group.id} currentUserId={user?.id || ""} />}
       </div>
     </div>
   );

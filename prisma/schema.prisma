@@ -30,16 +30,18 @@ model Group {
   description String?
   image       String?
   type        String       @default("group") // solo, couple, group
-  inviteCode  String       @unique // The TRIP-XXXX code
+  inviteCode  String       @unique
   ownerId     String
   owner       User         @relation("GroupOwner", fields: [ownerId], references: [id])
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
-  members     Membership[]
+  members      Membership[]
   destinations Destination[]
-  itinerary   ItineraryItem[]
-  expenses    Expense[]
+  itinerary    ItineraryItem[]
+  expenses     Expense[]
+  flights      Flight[]
+  stays        Stay[]
 }
 
 model Membership {
@@ -63,7 +65,7 @@ model Destination {
   image       String?
   status      String   @default("SUGGESTED") // SUGGESTED, CONFIRMED
   suggestedBy String
-  
+
   group       Group    @relation(fields: [groupId], references: [id])
   votes       Vote[]
 }
@@ -75,8 +77,35 @@ model ItineraryItem {
   time        String?
   location    String?
   date        DateTime
-  
+  type        String   @default("activity") // day_header, transport, stay, food, activity, other
+
   group       Group    @relation(fields: [groupId], references: [id])
+}
+
+model Flight {
+  id            String    @id @default(cuid())
+  groupId       String
+  number        String?
+  airline       String?
+  departureTime DateTime?
+  arrivalTime   DateTime?
+  origin        String?
+  destination   String?
+  createdAt     DateTime  @default(now())
+
+  group         Group     @relation(fields: [groupId], references: [id])
+}
+
+model Stay {
+  id        String    @id @default(cuid())
+  groupId   String
+  name      String
+  address   String?
+  checkIn   DateTime?
+  checkOut  DateTime?
+  createdAt DateTime  @default(now())
+
+  group     Group     @relation(fields: [groupId], references: [id])
 }
 
 model Vote {
@@ -99,7 +128,7 @@ model Expense {
   currency    String         @default("BRL")
   date        DateTime       @default(now())
   paidById    String
-  
+
   group       Group          @relation(fields: [groupId], references: [id])
   paidBy      User           @relation("Payer", fields: [paidById], references: [id])
   splits      ExpenseSplit[]

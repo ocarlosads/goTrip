@@ -27,24 +27,44 @@ interface Expense {
   splits: Split[];
 }
 
-const MOCK_MEMBERS = [
-  { id: "me", name: "Você" },
-  { id: "joao", name: "João" },
-  { id: "maria", name: "Maria" },
-  { id: "pedro", name: "Pedro" },
-];
+interface Member {
+  id: string;
+  name: string;
+  email: string;
+}
 
 interface ExpenseListProps {
   groupType?: "solo" | "couple" | "group";
   groupId: string;
+  currentUserId: string;
 }
 
-export const ExpenseList: React.FC<ExpenseListProps> = ({ groupType = "group", groupId }) => {
-  const activeMembers = MOCK_MEMBERS.slice(0, 
-    groupType === "solo" ? 1 : 
-    groupType === "couple" ? 2 : 
-    MOCK_MEMBERS.length
-  );
+export const ExpenseList: React.FC<ExpenseListProps> = ({ groupType = "group", groupId, currentUserId }) => {
+  const [allMembers, setAllMembers] = useState<Member[]>([]);
+
+  useEffect(() => {
+    const fetchMembers = async () => {
+      try {
+        const res = await apiFetch(`/api/groups/${groupId}/members`);
+        if (res.ok) setAllMembers(await res.json());
+      } catch (err) { console.error("Error fetching members:", err); }
+    };
+    fetchMembers();
+  }, [groupId]);
+
+  const membersWithLabel = allMembers.map((m) => ({
+    ...m,
+    displayName: m.id === currentUserId ? `Você (${m.name})` : m.name,
+  }));
+
+  const activeMembers = membersWithLabel.length === 0
+    ? [{ id: currentUserId, name: "Você", email: "", displayName: "Você" }]
+    : groupType === "solo"
+      ? membersWithLabel.filter((m) => m.id === currentUserId)
+      : groupType === "couple"
+        ? membersWithLabel.slice(0, 2)
+        : membersWithLabel;
+
 
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [isLoadingExpenses, setIsLoadingExpenses] = useState(true);
@@ -90,7 +110,7 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ groupType = "group", g
   const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault();
     const numTotalAmount = parseFloat(totalAmount);
-    
+
     const payersList: Payer[] = activeMembers
       .map(m => ({
         userId: m.id,
@@ -100,9 +120,9 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ groupType = "group", g
       .filter(p => p.amount > 0);
 
     const sumPayers = payersList.reduce((acc, p) => acc + p.amount, 0);
-    
+
     // Se o usuário não definiu quem pagou mas definiu o total, assume que "Você" pagou tudo
-    const finalPayers = payersList.length === 0 && numTotalAmount > 0 
+    const finalPayers = payersList.length === 0 && numTotalAmount > 0
       ? [{ userId: "me", userName: "Você", amount: numTotalAmount }]
       : payersList;
 
@@ -110,20 +130,20 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ groupType = "group", g
 
     const activeParticipants = activeMembers.filter(m => participantShares[m.id] > 0);
     const totalShares = activeParticipants.reduce((acc, m) => acc + participantShares[m.id], 0);
-    
+
     const isCoupleTrackingOnly = groupType === "couple" && !shouldSplit;
 
     if (!description || finalTotalAmount <= 0 || (!isSolo && !isCoupleTrackingOnly && totalShares === 0)) return;
 
     const amountPerShare = finalTotalAmount / (totalShares || 1);
-    
+
     const splits = (isSolo || isCoupleTrackingOnly)
       ? [{ userId: "me", amount: finalTotalAmount, shares: 1 }]
       : activeParticipants.map(m => ({
-          userId: m.id,
-          shares: participantShares[m.id],
-          amount: amountPerShare * participantShares[m.id]
-        }));
+        userId: m.id,
+        shares: participantShares[m.id],
+        amount: amountPerShare * participantShares[m.id]
+      }));
 
     try {
       const res = await apiFetch(`/api/groups/${groupId}/expenses`, {
@@ -195,19 +215,18 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ groupType = "group", g
 
   const totalSpent = expenses.reduce((acc, curr) => acc + curr.amount, 0);
   const toReceive = expenses.reduce((acc, curr) => {
-    const myPayment = curr.payers.find(p => p.userId === "me")?.amount || 0;
-    const mySplit = curr.splits.find(s => s.userId === "me")?.amount || 0;
+    const myPayment = curr.payers.find(p => p.userId === currentUserId)?.amount || 0;
+    const mySplit = curr.splits.find(s => s.userId === currentUserId)?.amount || 0;
     if (myPayment > mySplit) {
-      // Se eu paguei mais do que devia, a diferença é o que tenho a receber (se ainda não me pagaram)
-      const unpaidOthers = curr.splits.filter(s => s.userId !== "me" && !s.isPaid).reduce((sum, s) => sum + s.amount, 0);
+      const unpaidOthers = curr.splits.filter(s => s.userId !== currentUserId && !s.isPaid).reduce((sum, s) => sum + s.amount, 0);
       return acc + Math.min(myPayment - mySplit, unpaidOthers);
     }
     return acc;
   }, 0);
   const toPay = expenses.reduce((acc, curr) => {
-    const mySplit = curr.splits.find(s => s.userId === "me");
+    const mySplit = curr.splits.find(s => s.userId === currentUserId);
     if (mySplit && !mySplit.isPaid) {
-      const myPayment = curr.payers.find(p => p.userId === "me")?.amount || 0;
+      const myPayment = curr.payers.find(p => p.userId === currentUserId)?.amount || 0;
       if (mySplit.amount > myPayment) {
         return acc + (mySplit.amount - myPayment);
       }
@@ -220,10 +239,10 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ groupType = "group", g
     const balances: Record<string, number> = {};
     const matrix: Record<string, Record<string, number>> = {};
 
-    MOCK_MEMBERS.forEach(m => {
+    activeMembers.forEach(m => {
       balances[m.id] = 0;
       matrix[m.id] = {};
-      MOCK_MEMBERS.forEach(m2 => {
+      activeMembers.forEach(m2 => {
         if (m.id !== m2.id) matrix[m.id][m2.id] = 0;
       });
     });
@@ -233,7 +252,7 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ groupType = "group", g
       expense.splits.forEach(split => {
         if (!split.isPaid) {
           const debtorId = split.userId;
-          
+
           // A dívida é dividida entre os pagadores proporcionalmente ao que eles pagaram além da própria parte
           const creditors = expense.payers.filter(p => {
             const payerSplit = expense.splits.find(s => s.userId === p.userId)?.amount || 0;
@@ -264,8 +283,8 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ groupType = "group", g
     const finalDebts: { from: string; to: string; amount: number }[] = [];
     const processedPairs = new Set<string>();
 
-    MOCK_MEMBERS.forEach(m1 => {
-      MOCK_MEMBERS.forEach(m2 => {
+    activeMembers.forEach(m1 => {
+      activeMembers.forEach(m2 => {
         if (m1.id === m2.id) return;
         const pairId = [m1.id, m2.id].sort().join("-");
         if (processedPairs.has(pairId)) return;
@@ -375,7 +394,7 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ groupType = "group", g
               {finalDebts.length > 0 ? (
                 <div className="space-y-3">
                   {finalDebts.map((t, idx) => (
-                    <motion.div 
+                    <motion.div
                       key={idx}
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
@@ -388,7 +407,7 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ groupType = "group", g
                       </div>
                       <div className="flex items-center gap-4">
                         <span className="font-bold text-emerald-400">{formatCurrency(t.amount)}</span>
-                        <button 
+                        <button
                           onClick={() => handleNotify(t.from, t.to, t.amount)}
                           className="p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-all text-indigo-200 hover:text-white"
                           title="Notificar Pagamento"
@@ -413,7 +432,7 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ groupType = "group", g
 
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Histórico de Despesas</h2>
-        <button 
+        <button
           onClick={() => setIsModalOpen(true)}
           className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2 rounded-xl transition-all flex items-center gap-2"
         >
@@ -429,14 +448,14 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ groupType = "group", g
 
             return (
               <div key={expense.id} className="flex flex-col">
-                <div 
+                <div
                   onClick={() => setExpandedExpense(isExpanded ? null : expense.id)}
                   className="p-6 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer"
                 >
                   <div className="flex items-center gap-4">
                     <div className={cn(
                       "p-3 rounded-2xl",
-                      expense.payers.some(p => p.userId === "me") ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400" : "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400"
+                      expense.payers.some(p => p.userId === currentUserId) ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400" : "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400"
                     )}>
                       <Wallet className="w-6 h-6" />
                     </div>
@@ -444,8 +463,8 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ groupType = "group", g
                       <h4 className="font-bold text-gray-900 dark:text-white">{expense.description}</h4>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
                         Pago por <span className="font-semibold">
-                          {expense.payers.length === 1 
-                            ? expense.payers[0].userName 
+                          {expense.payers.length === 1
+                            ? expense.payers[0].userName
                             : `${expense.payers.length} pessoas`}
                         </span> em {new Date(expense.date).toLocaleDateString('pt-BR')}
                       </p>
@@ -474,7 +493,7 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ groupType = "group", g
 
                 <AnimatePresence>
                   {isExpanded && (
-                    <motion.div 
+                    <motion.div
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: "auto", opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
@@ -520,15 +539,15 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ groupType = "group", g
                                       <p className="text-xs text-gray-500 dark:text-gray-400">{formatCurrency(split.amount)}</p>
                                     </div>
                                   </div>
-                                  <button 
+                                  <button
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       toggleSplitPaid(expense.id, split.userId);
                                     }}
                                     className={cn(
                                       "px-3 py-1 rounded-lg text-[10px] font-bold uppercase transition-all",
-                                      split.isPaid 
-                                        ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/50" 
+                                      split.isPaid
+                                        ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/50"
                                         : "bg-white dark:bg-gray-800 text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-gray-700 hover:border-emerald-200 dark:hover:border-emerald-800 hover:text-emerald-600 dark:hover:text-emerald-400"
                                     )}
                                   >
@@ -553,14 +572,14 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ groupType = "group", g
       <AnimatePresence>
         {isModalOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsModalOpen(false)}
               className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             />
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -576,11 +595,11 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ groupType = "group", g
               <form onSubmit={handleAddExpense} className="space-y-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descrição</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Ex: Jantar no Restaurante" 
+                    placeholder="Ex: Jantar no Restaurante"
                     className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-colors"
                     required
                   />
@@ -592,12 +611,12 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ groupType = "group", g
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Valor Total</label>
                     <div className="relative">
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-sm">R$</span>
-                      <input 
-                        type="number" 
+                      <input
+                        type="number"
                         step="0.01"
                         value={totalAmount}
                         onChange={(e) => setTotalAmount(e.target.value)}
-                        placeholder="0,00" 
+                        placeholder="0,00"
                         className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-colors"
                         required
                       />
@@ -645,12 +664,12 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ groupType = "group", g
                             <span className="flex-1 text-sm font-medium text-gray-700 dark:text-gray-300">{member.name}</span>
                             <div className="relative w-32">
                               <span className="absolute left-3 top-2.5 text-xs text-gray-400">R$</span>
-                              <input 
-                                type="number" 
+                              <input
+                                type="number"
                                 step="0.01"
                                 value={payerAmounts[member.id]}
                                 onChange={(e) => setPayerAmounts(prev => ({ ...prev, [member.id]: e.target.value }))}
-                                placeholder="0,00" 
+                                placeholder="0,00"
                                 className="w-full pl-8 pr-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-colors"
                               />
                             </div>
@@ -669,8 +688,8 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ groupType = "group", g
                               key={member.id}
                               className={cn(
                                 "flex items-center justify-between p-3 rounded-xl border transition-all",
-                                participantShares[member.id] > 0 
-                                  ? "bg-indigo-50 dark:bg-indigo-900/30 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300" 
+                                participantShares[member.id] > 0
+                                  ? "bg-indigo-50 dark:bg-indigo-900/30 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300"
                                   : "bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 text-gray-500 dark:text-gray-400"
                               )}
                             >
@@ -683,9 +702,9 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ groupType = "group", g
                                 </div>
                                 <span className="text-xs font-medium truncate max-w-[60px]">{member.name}</span>
                               </div>
-                              
+
                               <div className="flex items-center gap-2">
-                                <button 
+                                <button
                                   type="button"
                                   onClick={() => updateShares(member.id, -1)}
                                   className="w-6 h-6 rounded-lg border border-gray-200 dark:border-gray-700 flex items-center justify-center hover:bg-white dark:hover:bg-gray-700 transition-colors text-gray-900 dark:text-white text-xs"
@@ -693,7 +712,7 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ groupType = "group", g
                                   -
                                 </button>
                                 <span className="w-3 text-center font-bold text-gray-900 dark:text-white text-xs">{participantShares[member.id]}</span>
-                                <button 
+                                <button
                                   type="button"
                                   onClick={() => updateShares(member.id, 1)}
                                   className="w-6 h-6 rounded-lg border border-gray-200 dark:border-gray-700 flex items-center justify-center hover:bg-white dark:hover:bg-gray-700 transition-colors text-gray-900 dark:text-white text-xs"
@@ -726,7 +745,7 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ groupType = "group", g
                   </div>
                 )}
 
-                <button 
+                <button
                   type="submit"
                   className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-100 dark:shadow-none transition-all"
                 >
@@ -743,6 +762,6 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ groupType = "group", g
 
 function ArrowRight({ className }: { className?: string }) {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
   );
 }
