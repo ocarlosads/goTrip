@@ -144,7 +144,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
           <div className="bg-indigo-600 p-3 rounded-xl">
             <Plane className="text-white w-8 h-8" />
           </div>
-          <h1 className="text-2xl font-bold ml-3 text-gray-900 dark:text-white">CheckTrip</h1>
+          <h1 className="text-2xl font-bold ml-3 text-gray-900 dark:text-white">goTrip</h1>
         </div>
 
         <div className="text-center mb-8">

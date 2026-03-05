@@ -87,9 +87,9 @@ async function startServer() {
       try {
         console.log(`[RESEND] Tentando enviar e-mail para: ${email}`);
         const { error: resendError } = await resend.emails.send({
-          from: "CheckTrip <onboarding@resend.dev>",
+          from: "goTrip <onboarding@resend.dev>",
           to: email,
-          subject: "Verifique seu e-mail - CheckTrip",
+          subject: "Verifique seu e-mail - goTrip",
           html: `<p>Seu código de verificação é: <strong>${verificationToken}</strong></p>`
         });
         if (resendError) console.error("[RESEND ERROR]", resendError);
@@ -661,7 +661,7 @@ async function startServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`CheckTrip Server running on http://localhost:${PORT}`);
+    console.log(`goTrip Server running on http://localhost:${PORT}`);
   });
 }
 

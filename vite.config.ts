@@ -14,8 +14,8 @@ export default defineConfig(({ mode }) => {
         registerType: 'autoUpdate',
         includeAssets: ['icon-192.png', 'icon-512.png'],
         manifest: {
-          name: 'CheckTrip',
-          short_name: 'CheckTrip',
+          name: 'goTrip',
+          short_name: 'goTrip',
           description: 'Seu melhor companheiro de viagens',
           theme_color: '#4f46e5',
           background_color: '#ffffff',

@@ -96,7 +96,7 @@ export default function App() {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col items-center justify-center transition-colors space-y-4">
         <Loader2 className="w-12 h-12 text-indigo-600 animate-spin" />
-        <p className="text-lg font-bold text-gray-900 dark:text-gray-100">Carregando CheckTrip...</p>
+        <p className="text-lg font-bold text-gray-900 dark:text-gray-100">Carregando goTrip...</p>
       </div>
     );
   }
@@ -140,7 +140,7 @@ function AppContent({
             <div className="bg-indigo-600 p-2 rounded-lg">
               <Plus className="text-white w-5 h-5 rotate-45" />
             </div>
-            <span className="text-xl font-bold text-gray-900 dark:text-white">CheckTrip</span>
+            <span className="text-xl font-bold text-gray-900 dark:text-white">goTrip</span>
           </div>
           <button
             onClick={toggleDarkMode}
@@ -216,7 +216,7 @@ function AppContent({
           <div className="bg-indigo-600 p-1.5 rounded-lg">
             <Plus className="text-white w-4 h-4 rotate-45" />
           </div>
-          <span className="font-bold text-gray-900 dark:text-white">CheckTrip</span>
+          <span className="font-bold text-gray-900 dark:text-white">goTrip</span>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -351,7 +351,7 @@ function AppContent({
                 <Settings className="w-10 h-10 text-gray-400" />
               </div>
               <h3 className="text-xl font-semibold text-gray-900">Em desenvolvimento</h3>
-              <p className="text-gray-500 mt-2 max-w-xs">Esta funcionalidade estará disponível em breve no CheckTrip.</p>
+              <p className="text-gray-500 mt-2 max-w-xs">Esta funcionalidade estará disponível em breve no goTrip.</p>
             </div>
           )}
         </div>
@@ -504,7 +504,7 @@ function DashboardView({ onSelectGroup, user }: { onSelectGroup: (g: Group) => v
           <div className="bg-indigo-600 w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-lg shadow-indigo-200 dark:shadow-none">
             <Plus className="text-white w-10 h-10 rotate-45" />
           </div>
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">Bem-vindo ao CheckTrip</h1>
+          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">Bem-vindo ao goTrip</h1>
           <p className="text-gray-500 dark:text-gray-400 text-lg mb-10 max-w-md mx-auto">
             Sua jornada começa aqui. Crie um novo planejamento ou entre em um grupo existente usando um ID.
           </p>
@@ -790,7 +790,7 @@ function AdminDashboardView() {
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Painel Administrativo</h1>
-        <p className="text-gray-500 dark:text-gray-400 mt-1">Visão geral da plataforma CheckTrip.</p>
+        <p className="text-gray-500 dark:text-gray-400 mt-1">Visão geral da plataforma goTrip.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
