@@ -1,0 +1,5 @@
+{
+  "name": "CheckTrip",
+  "description": "SaaS para organização de viagens em grupo com votação de destinos e divisão de custos.",
+  "requestFramePermissions": []
+}

@@ -1,0 +1,120 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String       @id @default(cuid())
+  name          String?
+  email         String       @unique
+  emailVerified DateTime?
+  image         String?
+  plan          String       @default("FREE") // FREE, PRO, PRO_ANNUAL
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  memberships   Membership[]
+  ownedGroups   Group[]      @relation("GroupOwner")
+  expensesPaid  Expense[]    @relation("Payer")
+  splits        ExpenseSplit[]
+  votes         Vote[]
+}
+
+model Group {
+  id          String       @id @default(cuid())
+  name        String
+  description String?
+  image       String?
+  type        String       @default("group") // solo, couple, group
+  inviteCode  String       @unique // The TRIP-XXXX code
+  ownerId     String
+  owner       User         @relation("GroupOwner", fields: [ownerId], references: [id])
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  members     Membership[]
+  destinations Destination[]
+  itinerary   ItineraryItem[]
+  expenses    Expense[]
+}
+
+model Membership {
+  id        String   @id @default(cuid())
+  userId    String
+  groupId   String
+  role      String   @default("MEMBER") // OWNER, ADMIN, MEMBER
+  joinedAt  DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+  group     Group    @relation(fields: [groupId], references: [id])
+
+  @@unique([userId, groupId])
+}
+
+model Destination {
+  id          String   @id @default(cuid())
+  groupId     String
+  name        String
+  description String?
+  image       String?
+  status      String   @default("SUGGESTED") // SUGGESTED, CONFIRMED
+  suggestedBy String
+  
+  group       Group    @relation(fields: [groupId], references: [id])
+  votes       Vote[]
+}
+
+model ItineraryItem {
+  id          String   @id @default(cuid())
+  groupId     String
+  title       String
+  time        String?
+  location    String?
+  date        DateTime
+  
+  group       Group    @relation(fields: [groupId], references: [id])
+}
+
+model Vote {
+  id            String      @id @default(cuid())
+  userId        String
+  destinationId String
+  value         Int         @default(1) // 1 for upvote, -1 for downvote
+
+  user          User        @relation(fields: [userId], references: [id])
+  destination   Destination @relation(fields: [destinationId], references: [id])
+
+  @@unique([userId, destinationId])
+}
+
+model Expense {
+  id          String         @id @default(cuid())
+  groupId     String
+  description String
+  amount      Float
+  currency    String         @default("BRL")
+  date        DateTime       @default(now())
+  paidById    String
+  
+  group       Group          @relation(fields: [groupId], references: [id])
+  paidBy      User           @relation("Payer", fields: [paidById], references: [id])
+  splits      ExpenseSplit[]
+}
+
+model ExpenseSplit {
+  id        String   @id @default(cuid())
+  expenseId String
+  userId    String
+  amount    Float
+  shares    Int      @default(1)
+  isPaid    Boolean  @default(false)
+
+  expense   Expense  @relation(fields: [expenseId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([expenseId, userId])
+}
