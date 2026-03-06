@@ -605,16 +605,37 @@ async function startServer() {
       const user = await prisma.user.findUnique({ where: { email: req.user.email } });
       if (!user) return res.status(404).json({ error: "User not found" });
 
+      // Garante que todos os usuários do split existam (mesmo os que não têm conta criada no app ainda).
+      const validSplits = await Promise.all(
+        splits.map(async (s: any) => {
+          let splitUser = await prisma.user.findUnique({ where: { id: s.userId } });
+
+          if (!splitUser) {
+            // Cria um usuário "Dummy" para representar a pessoa que não cadastrou o e-mail,
+            // vinculando ao ID informado ou a um e-mail falso
+            splitUser = await prisma.user.create({
+              data: {
+                id: s.userId,
+                name: s.userName || "Usuário Convidado",
+                email: `guest_${s.userId}@gotrip.local`,
+              }
+            });
+          }
+
+          return {
+            userId: splitUser.id,
+            amount: s.amount,
+            shares: s.shares || 1,
+            isPaid: splitUser.id === user.id,
+          };
+        })
+      );
+
       const newExpense = await prisma.expense.create({
         data: {
           groupId, description, amount, paidById: user.id,
           splits: {
-            create: splits.map((s: any) => ({
-              userId: s.userId,
-              amount: s.amount,
-              shares: s.shares || 1,
-              isPaid: s.userId === user.id,
-            })),
+            create: validSplits,
           },
         },
         include: { paidBy: true, splits: { include: { user: true } } },
@@ -653,7 +674,10 @@ async function startServer() {
 
   // ─── Vite / Static ────────────────────────────────────────────────────────
   if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({ server: { middlewareMode: true, host: true }, appType: "spa" });
+    const vite = await createViteServer({
+      server: { middlewareMode: true, host: "0.0.0.0", port: PORT },
+      appType: "spa"
+    });
     app.use(vite.middlewares);
   } else {
     app.use(express.static(path.join(__dirname, "dist")));
@@ -663,7 +687,7 @@ async function startServer() {
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`goTrip Server running on:`);
     console.log(`- Local:   http://localhost:${PORT}`);
-    console.log(`- Network: http://10.0.105.209:${PORT}`);
+    console.log(`- Network: http://0.0.0.0:${PORT}`);
   });
 }
 

@@ -12,14 +12,15 @@ export default defineConfig(({ mode }) => {
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['icon-192.png', 'icon-512.png'],
+        includeAssets: ['icon-192.png', 'icon-512.png', 'apple-touch-icon.png'],
         manifest: {
-          name: 'goTrip',
+          name: 'goTrip - Explore o Mundo',
           short_name: 'goTrip',
-          description: 'Seu melhor companheiro de viagens',
+          description: 'Seu melhor companheiro de viagens e despesas',
           theme_color: '#4f46e5',
           background_color: '#ffffff',
           display: 'standalone',
+          orientation: 'portrait',
           icons: [
             {
               src: 'icon-192.png',
@@ -59,10 +60,8 @@ export default defineConfig(({ mode }) => {
         '@': path.resolve(__dirname, '.'),
       },
     },
-    server: {
-      // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
-      hmr: process.env.DISABLE_HMR !== 'true',
-    },
+    server: { hmr: process.env.DISABLE_HMR !== 'true', allowedHosts: true, },
   };
 });
+
+
