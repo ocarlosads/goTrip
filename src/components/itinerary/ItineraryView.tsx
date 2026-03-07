@@ -28,6 +28,7 @@ interface Flight {
   arrivalTime: string | null;
   origin: string | null;
   destination: string | null;
+  boardingPassUrl?: string | null;
 }
 
 interface Stay {
@@ -86,6 +87,8 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
   const [isAddStayModalOpen, setIsAddStayModalOpen] = useState(false);
   const [isAddRentalModalOpen, setIsAddRentalModalOpen] = useState(false);
   const [isAddInsuranceModalOpen, setIsAddInsuranceModalOpen] = useState(false);
+  const [isBoardingPassModalOpen, setIsBoardingPassModalOpen] = useState(false);
+  const [viewingBoardingPassUrl, setViewingBoardingPassUrl] = useState<string | null>(null);
   const [selectedDayKey, setSelectedDayKey] = useState<string | null>(null);
 
   // Day form
@@ -110,6 +113,27 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
   const [rAirline, setRAirline] = useState("");
   const [rDepTime, setRDepTime] = useState("");
   const [rArrTime, setRArrTime] = useState("");
+  const [fBoardingPassUrl, setFBoardingPassUrl] = useState("");
+  const [rBoardingPassUrl, setRBoardingPassUrl] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleFileUpload = async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const res = await apiFetch("/api/upload", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData.error || "Erro no upload");
+    }
+
+    const data = await res.json();
+    return data.url;
+  };
 
   // Stay form
   const [sName, setSName] = useState("");
@@ -241,7 +265,9 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
     try {
       const payload: any = {
         number: fNumber, airline: fAirline, departureTime: fDepTime, arrivalTime: fArrTime, origin: fOrigin, destination: fDest,
-        isRoundTrip
+        isRoundTrip,
+        boardingPassUrl: fBoardingPassUrl,
+        rBoardingPassUrl: rBoardingPassUrl
       };
 
       if (isRoundTrip) {
@@ -517,6 +543,19 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
                           </div>
                         </div>
                       </div>
+                      {flight.boardingPassUrl && (
+                        <div className="mt-6 pt-4 border-t border-gray-50 dark:border-gray-800 flex justify-center">
+                          <button
+                            onClick={() => {
+                              setViewingBoardingPassUrl(flight.boardingPassUrl!);
+                              setIsBoardingPassModalOpen(true);
+                            }}
+                            className="w-full py-3 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-2xl text-xs font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-all flex items-center justify-center gap-2 border border-emerald-100/50 dark:border-emerald-900/10"
+                          >
+                            <ShieldCheck className="w-4 h-4" /> Ver Cartão de Embarque
+                          </button>
+                        </div>
+                      )}
                     </motion.div>
                   ))}
                   {flights.length === 0 && logisticsTab === "flights" && (
@@ -744,6 +783,32 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
                     <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Partida</label><input type="datetime-local" value={fDepTime} onChange={(e) => setFDepTime(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-xs" /></div>
                     <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Chegada</label><input type="datetime-local" value={fArrTime} onChange={(e) => setFArrTime(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-xs" /></div>
                   </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Arquivo do Cartão de Embarque (PDF ou Imagem)</label>
+                    <div className="relative">
+                      <input
+                        type="file"
+                        accept=".pdf,image/*"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setIsUploading(true);
+                            try {
+                              const url = await handleFileUpload(file);
+                              setFBoardingPassUrl(url);
+                            } catch (err: any) {
+                              alert("Erro no upload: " + err.message);
+                            } finally {
+                              setIsUploading(false);
+                            }
+                          }
+                        }}
+                        className="w-full px-4 py-2 text-xs text-gray-500 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                        disabled={isUploading}
+                      />
+                      {fBoardingPassUrl && <p className="text-[10px] text-emerald-600 mt-1 flex items-center gap-1"><ShieldCheck className="w-3 h-3" /> Arquivo pronto para salvar</p>}
+                    </div>
+                  </div>
                 </div>
 
                 <div className="flex items-center justify-between p-4 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-2xl border border-indigo-100/50 dark:border-indigo-900/20">
@@ -794,12 +859,42 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
                         <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Partida (Retorno)</label><input type="datetime-local" value={rDepTime} onChange={(e) => setRDepTime(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-xs" /></div>
                         <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Chegada (Retorno)</label><input type="datetime-local" value={rArrTime} onChange={(e) => setRArrTime(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-xs" /></div>
                       </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Arquivo do Cartão de Volta</label>
+                        <div className="relative">
+                          <input
+                            type="file"
+                            accept=".pdf,image/*"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                setIsUploading(true);
+                                try {
+                                  const url = await handleFileUpload(file);
+                                  setRBoardingPassUrl(url);
+                                } catch (err: any) {
+                                  alert("Erro no upload: " + err.message);
+                                } finally {
+                                  setIsUploading(false);
+                                }
+                              }
+                            }}
+                            className="w-full px-4 py-2 text-xs text-gray-500 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                            disabled={isUploading}
+                          />
+                          {rBoardingPassUrl && <p className="text-[10px] text-emerald-600 mt-1 flex items-center gap-1"><ShieldCheck className="w-3 h-3" /> Arquivo pronto para salvar</p>}
+                        </div>
+                      </div>
                     </motion.div>
                   )}
                 </AnimatePresence>
 
-                <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-2xl shadow-lg shadow-indigo-100 dark:shadow-none transition-all mt-4 flex items-center justify-center gap-2">
-                  <Plane className="w-5 h-5" /> Salvar {isRoundTrip ? "Voos" : "Voo"}
+                <button
+                  type="submit"
+                  disabled={isUploading}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white font-bold py-4 rounded-2xl shadow-lg shadow-indigo-100 dark:shadow-none transition-all mt-4 flex items-center justify-center gap-2"
+                >
+                  <Plane className="w-5 h-5" /> {isUploading ? "Enviando arquivo..." : `Salvar ${isRoundTrip ? "Voos" : "Voo"}`}
                 </button>
               </form>
             </motion.div>
@@ -899,6 +994,42 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
             </motion.div>
           </div>
         )}
+
+        {/* Boarding Pass Viewer Modal */}
+        <AnimatePresence>
+          {isBoardingPassModalOpen && viewingBoardingPassUrl && (
+            <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsBoardingPassModalOpen(false)} className="absolute inset-0 bg-black/80 backdrop-blur-md" />
+              <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="relative bg-white dark:bg-gray-900 w-full max-w-4xl h-[80vh] rounded-3xl overflow-hidden shadow-2xl transition-colors flex flex-col">
+                <div className="p-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between shrink-0">
+                  <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-bold">
+                    <ShieldCheck className="w-5 h-5" /> Cartão de Embarque
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <a href={viewingBoardingPassUrl} target="_blank" rel="noopener noreferrer" className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-gray-500 transition-colors">
+                      <ArrowRight className="w-5 h-5 -rotate-45" />
+                    </a>
+                    <button onClick={() => setIsBoardingPassModalOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors text-gray-400">
+                      <X className="w-6 h-6" />
+                    </button>
+                  </div>
+                </div>
+                <div className="flex-1 bg-gray-100 dark:bg-gray-950 overflow-hidden relative">
+                  {viewingBoardingPassUrl.toLowerCase().includes(".pdf") ? (
+                    <iframe src={viewingBoardingPassUrl} className="w-full h-full border-none" title="Boarding Pass PDF" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center p-4 md:p-12">
+                      <img src={viewingBoardingPassUrl} alt="Boarding Pass" className="max-w-full max-h-full object-contain rounded-xl shadow-lg ring-1 ring-black/5" />
+                    </div>
+                  )}
+                </div>
+                <div className="p-4 bg-gray-50 dark:bg-gray-800/50 text-center shrink-0">
+                  <p className="text-[10px] text-gray-400 uppercase font-bold tracking-widest">Visualização Segura • goTrip</p>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
       </AnimatePresence>
     </div>
   );

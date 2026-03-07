@@ -7,6 +7,8 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { Resend } from "resend";
 import { OAuth2Client } from "google-auth-library";
+import multer from "multer";
+import { createClient } from "@supabase/supabase-js";
 import { prisma } from "./src/lib/prisma";
 
 const resend = new Resend("re_ZVRXdGN8_LZXvgcV957hozut5n1z14c6q");
@@ -17,6 +19,16 @@ const __dirname = path.dirname(__filename);
 const JWT_SECRET = process.env.JWT_SECRET || "checktrip-secret-key-123";
 const GOOGLE_CLIENT_ID = "923509761070-56p6i5iju5ofefm4q7ieokor78luchm5.apps.googleusercontent.com";
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
+
+const supabase = createClient(
+  process.env.VITE_SUPABASE_URL || "",
+  process.env.VITE_SUPABASE_ANON_KEY || ""
+);
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB
+});
 
 async function startServer() {
   const app = express();
@@ -586,7 +598,7 @@ async function startServer() {
 
   app.post("/api/groups/:groupId/flights", authenticate, async (req: any, res) => {
     const { groupId } = req.params;
-    const { number, airline, departureTime, arrivalTime, origin, destination, isRoundTrip, returnFlight } = req.body;
+    const { number, airline, departureTime, arrivalTime, origin, destination, isRoundTrip, returnFlight, boardingPassUrl, rBoardingPassUrl } = req.body;
     try {
       const flightsToCreate = [];
 
@@ -599,6 +611,7 @@ async function startServer() {
         arrivalTime: arrivalTime ? new Date(arrivalTime) : null,
         origin,
         destination,
+        boardingPassUrl: boardingPassUrl || null,
       });
 
       // Voo de volta opcional
@@ -611,6 +624,7 @@ async function startServer() {
           arrivalTime: returnFlight.arrivalTime ? new Date(returnFlight.arrivalTime) : null,
           origin: returnFlight.origin,
           destination: returnFlight.destination,
+          boardingPassUrl: rBoardingPassUrl || null,
         });
       }
 
@@ -827,6 +841,36 @@ async function startServer() {
     const { type, payload } = req.body;
     console.log(`Notification [${type}]:`, payload);
     res.json({ success: true });
+  });
+
+  // ─── File Upload ────────────────────────────────────────────────────────
+  app.post("/api/upload", authenticate, upload.single("file"), async (req: any, res) => {
+    if (!req.file) return res.status(400).json({ error: "Nenhum arquivo enviado" });
+
+    try {
+      const file = req.file;
+      const fileExt = path.extname(file.originalname);
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}${fileExt}`;
+      const filePath = `boarding-passes/${fileName}`;
+
+      const { data, error } = await supabase.storage
+        .from("boarding-passes")
+        .upload(filePath, file.buffer, {
+          contentType: file.mimetype,
+          upsert: true
+        });
+
+      if (error) throw error;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from("boarding-passes")
+        .getPublicUrl(filePath);
+
+      res.json({ url: publicUrl });
+    } catch (err: any) {
+      console.error("Upload error:", err);
+      res.status(500).json({ error: "Erro ao fazer upload do arquivo: " + err.message });
+    }
   });
 
   // ─── Vite / Static ────────────────────────────────────────────────────────
