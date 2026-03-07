@@ -61,11 +61,11 @@ interface Insurance {
 interface ItineraryViewProps {
   groupId: string;
   initialData?: {
-    itinerary: ItineraryItem[];
-    flights: Flight[];
-    stays: Stay[];
-    carRentals: CarRental[];
-    insurances: Insurance[];
+    itinerary?: ItineraryItem[];
+    flights?: Flight[];
+    stays?: Stay[];
+    carRentals?: CarRental[];
+    insurances?: Insurance[];
   };
 }
 
@@ -135,11 +135,11 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
 
   useEffect(() => {
     if (initialData) {
-      setDays(groupItemsByDate(initialData.itinerary));
-      setFlights(initialData.flights);
-      setStays(initialData.stays);
-      setCarRentals(initialData.carRentals);
-      setInsurances(initialData.insurances);
+      setDays(groupItemsByDate(initialData.itinerary || []));
+      setFlights(initialData.flights || []);
+      setStays(initialData.stays || []);
+      setCarRentals(initialData.carRentals || []);
+      setInsurances(initialData.insurances || []);
       setIsLoading(false);
       return;
     }

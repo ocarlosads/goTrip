@@ -1080,7 +1080,7 @@ function GroupDetailView({ group, onBack, onLeave, user }: { group: Group, onBac
         ) : (
           <>
             {activeSubTab === "destinations" && <TripView groupId={group.id} initialData={groupData?.destinations} />}
-            {activeSubTab === "itinerary" && <ItineraryView groupId={group.id} initialData={{ itinerary: groupData?.itinerary, flights: groupData?.flights, stays: groupData?.stays }} />}
+            {activeSubTab === "itinerary" && <ItineraryView groupId={group.id} initialData={{ itinerary: groupData?.itinerary, flights: groupData?.flights, stays: groupData?.stays, carRentals: groupData?.carRentals, insurances: groupData?.insurances }} />}
             {activeSubTab === "expenses" && <ExpenseList groupType={group.type} groupId={group.id} currentUserId={user?.id || ""} initialData={{ expenses: groupData?.expenses, members: groupData?.members }} />}
           </>
         )}
