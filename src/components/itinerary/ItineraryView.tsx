@@ -1081,17 +1081,45 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                           <Car className="w-6 h-6" />
                         </div>
                         <div className="flex-1">
-                          <div className="flex items-center justify-between">
-                            <h4 className="font-bold text-gray-900 dark:text-white">{rental.company}</h4>
-                            {rental.bookingVoucherUrl && (
-                              <button
-                                onClick={() => { setViewingBoardingPassUrl(rental.bookingVoucherUrl || ""); setIsBoardingPassModalOpen(true); }}
-                                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl hover:bg-emerald-100 transition-colors"
-                              >
-                                <ShieldCheck className="w-4 h-4" />
-                                <span className="text-[10px] font-bold">Ver Voucher</span>
-                              </button>
-                            )}
+                          <div className="flex items-center justify-between gap-2">
+                            <h4 className="font-bold text-gray-900 dark:text-white truncate">{rental.company}</h4>
+                            <div className="flex items-center gap-2">
+                              {rental.bookingVoucherUrl ? (
+                                <button
+                                  onClick={() => { setViewingBoardingPassUrl(rental.bookingVoucherUrl || ""); setIsBoardingPassModalOpen(true); }}
+                                  className="text-[10px] text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 font-bold whitespace-nowrap"
+                                >
+                                  <ShieldCheck className="w-3.5 h-3.5" /> Ver Comprovante
+                                </button>
+                              ) : (
+                                <label className="text-[10px] text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1 cursor-pointer hover:underline whitespace-nowrap">
+                                  <Plus className="w-3.5 h-3.5" /> Anexar Comprovante
+                                  <input
+                                    type="file"
+                                    className="hidden"
+                                    accept=".pdf,image/*"
+                                    onChange={async (e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) {
+                                        try {
+                                          const url = await handleFileUpload(file);
+                                          await apiFetch(`/api/rentals/${rental.id}`, {
+                                            method: "PATCH",
+                                            headers: { "Content-Type": "application/json" },
+                                            body: JSON.stringify({ bookingVoucherUrl: url }),
+                                          });
+                                          await fetchAll();
+                                          showToast("Comprovante anexado!", "success");
+                                        } catch (err) {
+                                          console.error(err);
+                                          showToast("Erro ao anexar comprovante", "error");
+                                        }
+                                      }
+                                    }}
+                                  />
+                                </label>
+                              )}
+                            </div>
                           </div>
                           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{rental.model || "Modelo não informado"}</p>
                           {rental.confirmationCode && (
