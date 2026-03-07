@@ -845,11 +845,11 @@ async function startServer() {
   // ─── Car Rental Endpoints ──────────────────────────────────────────────────
   app.post("/api/groups/:groupId/rentals", authenticate, async (req: any, res) => {
     const { groupId } = req.params;
-    const { company, model, pickupLocation, pickupTime, dropoffLocation, dropoffTime, confirmationCode } = req.body;
+    const { company, model, pickupLocation, pickupTime, dropoffLocation, dropoffTime, confirmationCode, bookingVoucherUrl } = req.body;
     try {
       const rental = await prisma.carRental.create({
         data: {
-          groupId, company, model, pickupLocation, dropoffLocation, confirmationCode,
+          groupId, company, model, pickupLocation, dropoffLocation, confirmationCode, bookingVoucherUrl,
           pickupTime: pickupTime ? new Date(pickupTime) : null,
           dropoffTime: dropoffTime ? new Date(dropoffTime) : null,
         },
@@ -864,12 +864,12 @@ async function startServer() {
 
   app.patch("/api/rentals/:id", authenticate, async (req: any, res) => {
     const { id } = req.params;
-    const { company, model, pickupLocation, pickupTime, dropoffLocation, dropoffTime, confirmationCode } = req.body;
+    const { company, model, pickupLocation, pickupTime, dropoffLocation, dropoffTime, confirmationCode, bookingVoucherUrl } = req.body;
     try {
       const rental = await prisma.carRental.update({
         where: { id },
         data: {
-          company, model, pickupLocation, dropoffLocation, confirmationCode,
+          company, model, pickupLocation, dropoffLocation, confirmationCode, bookingVoucherUrl,
           pickupTime: pickupTime ? new Date(pickupTime) : null,
           dropoffTime: dropoffTime ? new Date(dropoffTime) : null
         },
@@ -881,10 +881,10 @@ async function startServer() {
 
   app.post("/api/rentals/:id/share", authenticate, async (req: any, res) => {
     const { id: carRentalId } = req.params;
-    const { userId, bookingVoucherUrl } = req.body;
+    const { userId, isDriver } = req.body;
     try {
       const member = await prisma.carRentalMember.create({
-        data: { carRentalId, userId, bookingVoucherUrl },
+        data: { carRentalId, userId, isDriver },
         include: { user: true }
       });
       res.json(member);
@@ -896,11 +896,11 @@ async function startServer() {
 
   app.patch("/api/rentals/members/:id", authenticate, async (req: any, res) => {
     const { id } = req.params;
-    const { bookingVoucherUrl } = req.body;
+    const { isDriver } = req.body;
     try {
       const updated = await prisma.carRentalMember.update({
         where: { id },
-        data: { bookingVoucherUrl }
+        data: { isDriver }
       });
       res.json(updated);
     } catch { res.status(500).json({ error: "Failed to update car rental member" }); }

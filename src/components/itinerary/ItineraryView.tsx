@@ -154,6 +154,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
   const [sharingRentalId, setSharingRentalId] = useState<string | null>(null);
   const [sharingRentalVoucher, setSharingRentalVoucher] = useState<string>("");
   const [sharingUserId, setSharingUserId] = useState<string>("");
+  const [crIsDriver, setCrIsDriver] = useState(false);
 
   // Day form
   const [newDayDate, setNewDayDate] = useState("");
@@ -459,17 +460,26 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
       const res = await apiFetch(editingRentalId ? `/api/rentals/${editingRentalId}` : `/api/groups/${groupId}/rentals`, {
         method: editingRentalId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ company: crCompany, model: crModel, pickupLocation: crPickupLoc, pickupTime: crPickupTime, dropoffLocation: crDropoffLoc, dropoffTime: crDropoffTime, confirmationCode: crCode }),
+        body: JSON.stringify({
+          company: crCompany,
+          model: crModel,
+          pickupLocation: crPickupLoc,
+          pickupTime: crPickupTime,
+          dropoffLocation: crDropoffLoc,
+          dropoffTime: crDropoffTime,
+          confirmationCode: crCode,
+          bookingVoucherUrl: crVoucherUrl
+        }),
       });
       if (res.ok) {
         const createdRental = await res.json();
 
-        // Link user if voucher is present and it's a new rental
-        if (crVoucherUrl && !editingRentalId) {
+        // Link creator as driver if it's a new rental and no members yet
+        if (!editingRentalId) {
           await apiFetch(`/api/rentals/${createdRental.id}/share`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ userId: currentUserId, bookingVoucherUrl: crVoucherUrl }),
+            body: JSON.stringify({ userId: currentUserId, isDriver: true }),
           });
         }
 
@@ -488,13 +498,13 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
       const res = await apiFetch(`/api/rentals/${sharingRentalId}/share`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, bookingVoucherUrl: sharingRentalVoucher }),
+        body: JSON.stringify({ userId, isDriver: crIsDriver }),
       });
       if (res.ok) {
         await fetchAll();
         setIsShareRentalModalOpen(false);
         setSharingRentalId(null);
-        setSharingRentalVoucher("");
+        setCrIsDriver(false);
       }
     } catch (err) { console.error(err); }
   };
@@ -1070,8 +1080,19 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                         <div className="p-3 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-2xl">
                           <Car className="w-6 h-6" />
                         </div>
-                        <div>
-                          <h4 className="font-bold text-gray-900 dark:text-white">{rental.company}</h4>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-bold text-gray-900 dark:text-white">{rental.company}</h4>
+                            {rental.bookingVoucherUrl && (
+                              <button
+                                onClick={() => { setViewingBoardingPassUrl(rental.bookingVoucherUrl || ""); setIsBoardingPassModalOpen(true); }}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl hover:bg-emerald-100 transition-colors"
+                              >
+                                <ShieldCheck className="w-4 h-4" />
+                                <span className="text-[10px] font-bold">Ver Voucher</span>
+                              </button>
+                            )}
+                          </div>
                           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{rental.model || "Modelo não informado"}</p>
                           {rental.confirmationCode && (
                             <span className="inline-flex items-center gap-1.5 mt-2 px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-[10px] font-bold text-gray-600 dark:text-gray-400 rounded-md">
@@ -1105,135 +1126,115 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                             <UserPlus className="w-3.5 h-3.5" />
                           </button>
                         </div>
-                        <div className="space-y-2">
+                        <div className="flex flex-wrap gap-2">
                           {(rental.members || []).map((m) => (
-                            <div key={m.id} className="flex items-center justify-between p-2 rounded-xl bg-gray-50/50 dark:bg-gray-800/30 border border-transparent hover:border-gray-100 dark:hover:border-gray-700 transition-all">
-                              <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-[10px] font-bold text-indigo-600 dark:text-indigo-400">
-                                  {m.user?.name?.[0] || m.user?.email?.[0]?.toUpperCase()}
-                                </div>
-                                <div className="flex flex-col">
-                                  <span className="text-[11px] font-bold text-gray-700 dark:text-gray-200">{m.user?.name || m.user?.email}</span>
-                                  {m.bookingVoucherUrl ? (
-                                    <button
-                                      onClick={() => { setViewingBoardingPassUrl(m.bookingVoucherUrl || ""); setIsBoardingPassModalOpen(true); }}
-                                      className="text-[9px] text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-0.5 font-medium"
-                                    >
-                                      <ShieldCheck className="w-2.5 h-2.5" /> Comprovante
-                                    </button>
-                                  ) : m.user?.id === currentUserId ? (
-                                    <div className="flex items-center gap-1 relative">
-                                      <label className="text-[9px] text-amber-600 dark:text-amber-400 font-bold flex items-center gap-0.5 cursor-pointer hover:underline">
-                                        <Plus className="w-2 h-2" /> Voucher
-                                        <input
-                                          type="file"
-                                          className="hidden"
-                                          accept=".pdf,image/*"
-                                          onChange={async (e) => {
-                                            const file = e.target.files?.[0];
-                                            if (file) {
-                                              try {
-                                                const url = await handleFileUpload(file);
-                                                await apiFetch(`/api/rentals/members/${m.id}`, {
-                                                  method: "PATCH",
-                                                  headers: { "Content-Type": "application/json" },
-                                                  body: JSON.stringify({ bookingVoucherUrl: url }),
-                                                });
-                                                await fetchAll();
-                                              } catch (err) { console.error(err); }
-                                            }
-                                          }}
-                                        />
-                                      </label>
-                                    </div>
-                                  ) : (
-                                    <span className="text-[9px] text-gray-400 italic">Sem voucher</span>
-                                  )}
-                                </div>
+                            <div
+                              key={m.id}
+                              className={cn(
+                                "flex items-center gap-2 p-1.5 pr-3 rounded-full border transition-all",
+                                m.isDriver
+                                  ? "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-900/30 text-amber-700 dark:text-amber-400"
+                                  : "bg-gray-50/80 dark:bg-gray-800/50 border-gray-100 dark:border-gray-800 text-gray-700 dark:text-gray-200"
+                              )}
+                            >
+                              <div className={cn(
+                                "w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold uppercase",
+                                m.isDriver
+                                  ? "bg-amber-200 dark:bg-amber-800/50"
+                                  : "bg-indigo-100 dark:bg-indigo-900/40"
+                              )}>
+                                {m.user?.name?.[0] || m.user?.email?.[0] || "?"}
                               </div>
+                              <span className="text-[10px] font-bold">
+                                {m.isDriver && "🚗 "}{m.user?.id === currentUserId ? "Você" : (m.user?.name || m.user?.email.split('@')[0])}
+                              </span>
                             </div>
                           ))}
                           {(rental.members || []).length === 0 && (
                             <p className="text-[10px] text-gray-400 italic py-1">Nenhum membro vinculado.</p>
                           )}
                         </div>
-                      </div>
-                    </motion.div>
+                      </div >
+                    </motion.div >
                   ))}
-                  {carRentals.length === 0 && logisticsTab === "rentals" && (
-                    <div className="col-span-full py-12 text-center bg-gray-50/50 dark:bg-gray-800/20 rounded-3xl border border-dashed border-gray-200 dark:border-gray-800">
-                      <Car className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-                      <p className="text-sm text-gray-400 italic">Nenhum aluguel cadastrado.</p>
-                    </div>
-                  )}
-                </div>
-              </section>
+                  {
+                    carRentals.length === 0 && logisticsTab === "rentals" && (
+                      <div className="col-span-full py-12 text-center bg-gray-50/50 dark:bg-gray-800/20 rounded-3xl border border-dashed border-gray-200 dark:border-gray-800">
+                        <Car className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+                        <p className="text-sm text-gray-400 italic">Nenhum aluguel cadastrado.</p>
+                      </div>
+                    )
+                  }
+                </div >
+              </section >
             )}
 
             {/* Insurance Section */}
-            {(logisticsTab === "all" || logisticsTab === "insurances") && (
-              <section className="col-span-full space-y-4 pt-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2"><ShieldCheck className="w-5 h-5 text-indigo-600 dark:text-indigo-400" /> Seguro Viagem</h3>
-                  <button onClick={() => setIsAddInsuranceModalOpen(true)} className="p-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl hover:bg-indigo-100 transition-colors"><Plus className="w-5 h-5" /></button>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {insurances.map((ins) => (
-                    <motion.div layout key={ins.id} className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm relative group transition-colors">
-                      <div className="absolute top-4 right-4 flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all">
-                        <button
-                          onClick={() => {
-                            setEditingInsuranceId(ins.id);
-                            setInsProvider(ins.provider);
-                            setInsPolicy(ins.policyNumber || "");
-                            setInsStart(ins.startDate ? new Date(ins.startDate).toISOString().split('T')[0] : "");
-                            setInsEnd(ins.endDate ? new Date(ins.endDate).toISOString().split('T')[0] : "");
-                            setInsContact(ins.contactInfo || "");
-                            setIsAddInsuranceModalOpen(true);
-                          }}
-                          className="p-2 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl transition-all"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </button>
-                        <button onClick={() => handleDeleteInsurance(ins.id)} className="p-2 hover:bg-red-50 dark:hover:bg-red-900/30 text-red-400 rounded-xl transition-all"><Trash2 className="w-4 h-4" /></button>
+            {
+              (logisticsTab === "all" || logisticsTab === "insurances") && (
+                <section className="col-span-full space-y-4 pt-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2"><ShieldCheck className="w-5 h-5 text-indigo-600 dark:text-indigo-400" /> Seguro Viagem</h3>
+                    <button onClick={() => setIsAddInsuranceModalOpen(true)} className="p-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl hover:bg-indigo-100 transition-colors"><Plus className="w-5 h-5" /></button>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {insurances.map((ins) => (
+                      <motion.div layout key={ins.id} className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm relative group transition-colors">
+                        <div className="absolute top-4 right-4 flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all">
+                          <button
+                            onClick={() => {
+                              setEditingInsuranceId(ins.id);
+                              setInsProvider(ins.provider);
+                              setInsPolicy(ins.policyNumber || "");
+                              setInsStart(ins.startDate ? new Date(ins.startDate).toISOString().split('T')[0] : "");
+                              setInsEnd(ins.endDate ? new Date(ins.endDate).toISOString().split('T')[0] : "");
+                              setInsContact(ins.contactInfo || "");
+                              setIsAddInsuranceModalOpen(true);
+                            }}
+                            className="p-2 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl transition-all"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => handleDeleteInsurance(ins.id)} className="p-2 hover:bg-red-50 dark:hover:bg-red-900/30 text-red-400 rounded-xl transition-all"><Trash2 className="w-4 h-4" /></button>
+                        </div>
+                        <div className="flex items-start gap-4 mb-4">
+                          <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-2xl">
+                            <ShieldCheck className="w-6 h-6" />
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-gray-900 dark:text-white">{ins.provider}</h4>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Apólice: {ins.policyNumber || "Não informada"}</p>
+                            {ins.contactInfo && (
+                              <div className="flex items-center gap-1.5 mt-2 text-xs text-indigo-600 dark:text-indigo-400 font-medium">
+                                <Info className="w-3.5 h-3.5" /> Emergência: {ins.contactInfo}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-50 dark:border-gray-800">
+                          <div className="bg-gray-50/50 dark:bg-gray-800/30 p-3 rounded-2xl">
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Início</p>
+                            <p className="text-sm font-bold text-gray-900 dark:text-white">{ins.startDate ? new Date(ins.startDate).toLocaleDateString("pt-BR") : "—"}</p>
+                          </div>
+                          <div className="bg-gray-50/50 dark:bg-gray-800/30 p-3 rounded-2xl">
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Fim</p>
+                            <p className="text-sm font-bold text-gray-900 dark:text-white">{ins.endDate ? new Date(ins.endDate).toLocaleDateString("pt-BR") : "—"}</p>
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                    {insurances.length === 0 && logisticsTab === "insurances" && (
+                      <div className="col-span-full py-12 text-center bg-gray-50/50 dark:bg-gray-800/20 rounded-3xl border border-dashed border-gray-200 dark:border-gray-800">
+                        <ShieldCheck className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+                        <p className="text-sm text-gray-400 italic">Nenhum seguro cadastrado.</p>
                       </div>
-                      <div className="flex items-start gap-4 mb-4">
-                        <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-2xl">
-                          <ShieldCheck className="w-6 h-6" />
-                        </div>
-                        <div>
-                          <h4 className="font-bold text-gray-900 dark:text-white">{ins.provider}</h4>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Apólice: {ins.policyNumber || "Não informada"}</p>
-                          {ins.contactInfo && (
-                            <div className="flex items-center gap-1.5 mt-2 text-xs text-indigo-600 dark:text-indigo-400 font-medium">
-                              <Info className="w-3.5 h-3.5" /> Emergência: {ins.contactInfo}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-50 dark:border-gray-800">
-                        <div className="bg-gray-50/50 dark:bg-gray-800/30 p-3 rounded-2xl">
-                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Início</p>
-                          <p className="text-sm font-bold text-gray-900 dark:text-white">{ins.startDate ? new Date(ins.startDate).toLocaleDateString("pt-BR") : "—"}</p>
-                        </div>
-                        <div className="bg-gray-50/50 dark:bg-gray-800/30 p-3 rounded-2xl">
-                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Fim</p>
-                          <p className="text-sm font-bold text-gray-900 dark:text-white">{ins.endDate ? new Date(ins.endDate).toLocaleDateString("pt-BR") : "—"}</p>
-                        </div>
-                      </div>
-                    </motion.div>
-                  ))}
-                  {insurances.length === 0 && logisticsTab === "insurances" && (
-                    <div className="col-span-full py-12 text-center bg-gray-50/50 dark:bg-gray-800/20 rounded-3xl border border-dashed border-gray-200 dark:border-gray-800">
-                      <ShieldCheck className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-                      <p className="text-sm text-gray-400 italic">Nenhum seguro cadastrado.</p>
-                    </div>
-                  )}
-                </div>
-              </section>
-            )}
-          </div>
-        </div>
+                    )}
+                  </div>
+                </section>
+              )
+            }
+          </div >
+        </div >
       )}
 
       {/* ─── Modals ─────────────────────────────────────────────────────────── */}
@@ -1540,7 +1541,63 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                     <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Data/Hora</label><input type="datetime-local" value={crDropoffTime} onChange={(e) => setCrDropoffTime(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none text-[10px]" /></div>
                   </div>
                 </div>
-                <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Cód. Confirmação</label><input type="text" value={crCode} onChange={(e) => setCrCode(e.target.value)} placeholder="ABC123DEF" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm uppercase font-mono" /></div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Cód. Confirmação</label>
+                    <input type="text" value={crCode} onChange={(e) => setCrCode(e.target.value)} placeholder="ABC123DEF" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm uppercase font-mono" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Comprovante de Reserva</label>
+                    <div className="flex items-center gap-2">
+                      <label className="flex-1">
+                        <div className={cn(
+                          "flex items-center justify-center gap-2 p-3 rounded-xl border-2 border-dashed transition-all cursor-pointer",
+                          crVoucherUrl ? "border-emerald-200 bg-emerald-50 dark:border-emerald-900/10" : "border-gray-200 hover:border-indigo-300 dark:border-gray-800"
+                        )}>
+                          {crIsUploading ? (
+                            <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
+                          ) : crVoucherUrl ? (
+                            <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                          ) : (
+                            <Plus className="w-4 h-4 text-gray-400" />
+                          )}
+                          <span className="text-xs font-bold text-gray-600 dark:text-gray-400 truncate max-w-[100px]">
+                            {crIsUploading ? "Enviando..." : crVoucherUrl ? "Anexado" : "Voucher"}
+                          </span>
+                        </div>
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept=".pdf,image/*"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              setCrIsUploading(true);
+                              try {
+                                const url = await handleFileUpload(file);
+                                setCrVoucherUrl(url);
+                                showToast("Voucher enviado com sucesso!", "success");
+                              } catch (err) {
+                                console.error(err);
+                                showToast("Erro ao enviar voucher", "error");
+                              }
+                              setCrIsUploading(false);
+                            }
+                          }}
+                        />
+                      </label>
+                      {crVoucherUrl && (
+                        <button
+                          type="button"
+                          onClick={() => setCrVoucherUrl("")}
+                          className="p-3 bg-red-50 dark:bg-red-900/20 text-red-500 rounded-xl hover:bg-red-100 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
                 <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg transition-all mt-4">Salvar Aluguel</button>
               </form>
             </motion.div>
@@ -1814,21 +1871,19 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                       ))}
                     </select>
                   </div>
-                  <div className="space-y-2">
-                    <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Comprovante de Reserva (Opcional)</label>
-                    <label className="flex-1 block">
-                      <div className={cn("flex items-center justify-center gap-2 p-3 rounded-xl border-2 border-dashed transition-all cursor-pointer", sharingRentalVoucher ? "border-emerald-200 bg-emerald-50 dark:border-emerald-900/30" : "border-gray-200 hover:border-indigo-300 dark:border-gray-800")}>
-                        {crIsUploading ? <Loader2 className="w-5 h-5 animate-spin text-indigo-600" /> : sharingRentalVoucher ? <ShieldCheck className="w-5 h-5 text-emerald-600" /> : <Plus className="w-5 h-5 text-gray-400" />}
-                        <span className="text-sm font-bold text-gray-600 dark:text-gray-400">{crIsUploading ? "Enviando..." : sharingRentalVoucher ? "Documento Pronto" : "Anexar Documento"}</span>
-                      </div>
-                      <input type="file" className="hidden" accept=".pdf,image/*" onChange={async (e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          setCrIsUploading(true);
-                          try { const url = await handleFileUpload(file); setSharingRentalVoucher(url); } catch (err) { console.error(err); }
-                          setCrIsUploading(false);
-                        }
-                      }} />
+                  <div className="flex items-center gap-3 p-4 rounded-2xl bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/20">
+                    <div className="flex items-center h-5">
+                      <input
+                        id="isDriver"
+                        type="checkbox"
+                        checked={crIsDriver}
+                        onChange={(e) => setCrIsDriver(e.target.checked)}
+                        className="w-5 h-5 rounded border-gray-300 text-amber-600 focus:ring-amber-500 cursor-pointer"
+                      />
+                    </div>
+                    <label htmlFor="isDriver" className="flex flex-col cursor-pointer">
+                      <span className="text-sm font-bold text-amber-900 dark:text-amber-400">Condutor Principal</span>
+                      <span className="text-[11px] text-amber-700 dark:text-amber-500">Este membro será o responsável por dirigir o veículo.</span>
                     </label>
                   </div>
                   <button onClick={() => handleShareRental(sharingUserId)} disabled={!sharingUserId || crIsUploading} className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white font-bold py-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2">
@@ -1841,6 +1896,6 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
           </div>
         )}
       </AnimatePresence>
-    </div>
+    </div >
   );
 };
