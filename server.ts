@@ -375,11 +375,11 @@ async function startServer() {
           where: {
             groupId,
             OR: [
-              { creatorId: (await prisma.user.findUnique({ where: { email: req.user.email } }))?.id },
+              { creatorId: (await prisma.user.findUnique({ where: { email: req.user.email } }))?.id || "" },
               { passengers: { some: { user: { email: req.user.email } } } }
             ]
           },
-          include: { passengers: true },
+          include: { passengers: { include: { user: { select: { id: true, name: true, email: true } } } } },
           orderBy: { departureTime: "asc" }
         }),
         prisma.stay.findMany({ where: { groupId }, orderBy: { checkIn: "asc" } }),
@@ -610,7 +610,7 @@ async function startServer() {
             { passengers: { some: { userId: user?.id } } }
           ]
         },
-        include: { passengers: true },
+        include: { passengers: { include: { user: { select: { id: true, name: true, email: true } } } } },
         orderBy: { departureTime: "asc" }
       });
       res.json(flights);
@@ -683,13 +683,21 @@ async function startServer() {
 
   app.post("/api/flights/:flightId/share", authenticate, async (req: any, res) => {
     const { flightId } = req.params;
-    const { userId } = req.body;
+    const { userId, boardingPassUrl } = req.body;
     try {
       const passenger = await prisma.flightPassenger.create({
-        data: { flightId, userId }
+        data: {
+          flightId,
+          userId,
+          boardingPassUrl: boardingPassUrl || null
+        },
+        include: { user: { select: { id: true, name: true, email: true } } }
       });
       res.json(passenger);
-    } catch { res.status(500).json({ error: "Failed to share flight" }); }
+    } catch (err) {
+      console.error("Error sharing flight:", err);
+      res.status(500).json({ error: "Failed to share flight" });
+    }
   });
 
   app.patch("/api/flights/passengers/:id", authenticate, async (req: any, res) => {
@@ -721,7 +729,7 @@ async function startServer() {
 
       // Atualiza documentos do passageiro atual se enviados
       if (boardingPassUrl !== undefined || identityDocUrl !== undefined) {
-        await (prisma as any).flightPassenger.updateMany({
+        await prisma.flightPassenger.updateMany({
           where: { flightId, userId },
           data: {
             ...(boardingPassUrl !== undefined && { boardingPassUrl }),
@@ -731,7 +739,7 @@ async function startServer() {
 
         const updatedFlight = await prisma.flight.findUnique({
           where: { id: flightId },
-          include: { passengers: { include: { user: true } } }
+          include: { passengers: { include: { user: { select: { id: true, name: true, email: true } } } } }
         });
         return res.json(updatedFlight);
       }
