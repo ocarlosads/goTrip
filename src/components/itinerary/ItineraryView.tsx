@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { Calendar, Clock, MapPin, Plus, Trash2, X, Plane, Hotel, Navigation, Loader2, Car, Shield, ShieldCheck, ArrowRight, ArrowLeftRight, CreditCard, Info, Pencil } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { apiFetch } from "../../lib/api";
+import { useToast } from "../../context/ToastContext";
 
 interface ItineraryItem {
   id: string;
@@ -97,6 +98,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
   const [carRentals, setCarRentals] = useState<CarRental[]>(initialData?.carRentals || []);
   const [insurances, setInsurances] = useState<Insurance[]>(initialData?.insurances || []);
   const [members, setMembers] = useState<any[]>(initialData?.members || []);
+  const { showToast } = useToast();
   const [isLoading, setIsLoading] = useState(!initialData);
   const [activeSection, setActiveSection] = useState<"days" | "logistics">("days");
   const [logisticsTab, setLogisticsTab] = useState<"all" | "flights" | "stays" | "rentals" | "insurances">("all");
@@ -188,6 +190,25 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
   const [editingRentalId, setEditingRentalId] = useState<string | null>(null);
   const [editingInsuranceId, setEditingInsuranceId] = useState<string | null>(null);
 
+  const fetchAll = async () => {
+    try {
+      const res = await apiFetch(`/api/groups/${groupId}/data`);
+      if (res.ok) {
+        const data = await res.json();
+        setDays(groupItemsByDate(data.itinerary));
+        setFlights(data.flights);
+        setStays(data.stays);
+        setCarRentals(data.carRentals);
+        setInsurances(data.insurances);
+        setMembers(data.members);
+      }
+    } catch (err) {
+      console.error("Failed to fetch all data", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (initialData) {
       setDays(groupItemsByDate(initialData.itinerary || []));
@@ -218,22 +239,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
     return Object.values(map).sort((a, b) => a.dateKey.localeCompare(b.dateKey));
   }
 
-  const fetchAll = async () => {
-    try {
-      const res = await apiFetch(`/api/groups/${groupId}/data`);
-      if (res.ok) {
-        const data = await res.json();
-        setDays(groupItemsByDate(data.itinerary || []));
-        setFlights(data.flights || []);
-        setStays(data.stays || []);
-        setCarRentals(data.carRentals || []);
-        setInsurances(data.insurances || []);
-        setMembers(data.members || []);
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
+
 
   const handleAddDay = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -700,7 +706,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                       </div>
                       {flight.passengers.length > 0 && (
                         <div className="mt-6 pt-4 border-t border-gray-50 dark:border-gray-800 flex flex-col gap-3">
-                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Seus Documentos e de outros passageiros:</p>
+                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider text-center">Cartões de Embarque (Passageiros):</p>
                           {[...flight.passengers].sort((a, b) => a.userId === currentUserId ? -1 : b.userId === currentUserId ? 1 : 0).map(p => (
                             <div key={p.id} className={cn(
                               "p-3 rounded-2xl border transition-all",
@@ -721,7 +727,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                                   "text-[10px] font-bold transition-colors",
                                   p.userId === currentUserId ? "text-indigo-600 dark:text-indigo-400" : "text-gray-500"
                                 )}>
-                                  {p.userId === currentUserId ? "Meus Documentos (Você)" : (p.user?.name || p.user?.email)}
+                                  {p.userId === currentUserId ? "Meu Cartão de Embarque (Você)" : (p.user?.name || p.user?.email)}
                                 </span>
                                 {p.userId === currentUserId && (
                                   <div className="ml-auto px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 rounded text-[8px] font-bold uppercase tracking-tighter">
@@ -746,8 +752,38 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                                     <ShieldCheck className="w-3.5 h-3.5" /> Cartão
                                   </button>
                                 ) : (
-                                  <div className="py-2.5 bg-gray-50 dark:bg-gray-800/40 text-gray-400 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1.5 border border-transparent italic col-span-2">
-                                    <Plus className="w-3.5 h-3.5" /> Sem Cartão
+                                  <div className="py-1 col-span-2">
+                                    <label className="block text-[8px] font-bold text-gray-400 uppercase mb-1 flex items-center gap-1.5 px-1">
+                                      <Plus className="w-2 h-2" /> Anexar Cartão
+                                    </label>
+                                    <input
+                                      type="file"
+                                      accept=".pdf,image/*"
+                                      onChange={async (e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) {
+                                          setIsUploading(true);
+                                          try {
+                                            const url = await handleFileUpload(file);
+                                            const res = await apiFetch(`/api/flights/passengers/${p.id}`, {
+                                              method: "PATCH",
+                                              headers: { "Content-Type": "application/json" },
+                                              body: JSON.stringify({ boardingPassUrl: url })
+                                            });
+                                            if (res.ok) {
+                                              fetchAll();
+                                              showToast("Cartão anexado!", "success");
+                                            }
+                                          } catch (err: any) {
+                                            showToast("Erro no upload", "error");
+                                          } finally {
+                                            setIsUploading(false);
+                                          }
+                                        }
+                                      }}
+                                      className="w-full text-[9px] text-gray-500 file:mr-2 file:py-1.5 file:px-2.5 file:rounded-xl file:border-0 file:text-[9px] file:font-bold file:bg-indigo-50 dark:file:bg-indigo-900/40 file:text-indigo-700 dark:file:text-indigo-300 hover:file:bg-indigo-100 transition-all border border-gray-100 dark:border-gray-800 rounded-xl p-1 bg-white dark:bg-gray-900 shadow-sm"
+                                      disabled={isUploading}
+                                    />
                                   </div>
                                 )}
                               </div>
@@ -1262,14 +1298,19 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
           {isBoardingPassModalOpen && viewingBoardingPassUrl && (
             <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsBoardingPassModalOpen(false)} className="absolute inset-0 bg-black/80 backdrop-blur-md" />
-              <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="relative bg-white dark:bg-gray-900 w-full max-w-4xl h-[80vh] rounded-3xl overflow-hidden shadow-2xl transition-colors flex flex-col">
+              <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="relative bg-white dark:bg-gray-900 w-full max-w-5xl h-[90vh] md:h-[85vh] rounded-3xl overflow-hidden shadow-2xl transition-colors flex flex-col">
                 <div className="p-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between shrink-0">
                   <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-bold">
-                    <ShieldCheck className="w-5 h-5" /> Cartão de Embarque
+                    <ShieldCheck className="w-5 h-5" /> Documento / Cartão
                   </div>
                   <div className="flex items-center gap-2">
-                    <a href={viewingBoardingPassUrl} target="_blank" rel="noopener noreferrer" className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-gray-500 transition-colors">
-                      <ArrowRight className="w-5 h-5 -rotate-45" />
+                    <a
+                      href={viewingBoardingPassUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 rounded-xl text-xs font-bold hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-all"
+                    >
+                      <ArrowRight className="w-3.5 h-3.5 -rotate-45" /> Abrir Original
                     </a>
                     <button onClick={() => setIsBoardingPassModalOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors text-gray-400">
                       <X className="w-6 h-6" />
@@ -1278,15 +1319,24 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                 </div>
                 <div className="flex-1 bg-gray-100 dark:bg-gray-950 overflow-hidden relative">
                   {viewingBoardingPassUrl.toLowerCase().includes(".pdf") ? (
-                    <iframe src={viewingBoardingPassUrl} className="w-full h-full border-none" title="Boarding Pass PDF" />
+                    <div className="w-full h-full">
+                      <iframe
+                        src={`${viewingBoardingPassUrl}#view=FitH`}
+                        className="w-full h-full border-none bg-gray-100 dark:bg-gray-950"
+                        title="Document PDF"
+                      />
+                    </div>
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center p-4 md:p-12">
-                      <img src={viewingBoardingPassUrl} alt="Boarding Pass" className="max-w-full max-h-full object-contain rounded-xl shadow-lg ring-1 ring-black/5" />
+                    <div className="w-full h-full flex items-center justify-center p-4">
+                      <img src={viewingBoardingPassUrl} alt="Document" className="max-w-full max-h-full object-contain rounded-xl shadow-lg ring-1 ring-black/5" />
                     </div>
                   )}
                 </div>
-                <div className="p-4 bg-gray-50 dark:bg-gray-800/50 text-center shrink-0">
+                <div className="p-3 bg-gray-50 dark:bg-gray-800/50 text-center shrink-0 flex items-center justify-center gap-4">
                   <p className="text-[10px] text-gray-400 uppercase font-bold tracking-widest">Visualização Segura • goTrip</p>
+                  {viewingBoardingPassUrl.toLowerCase().includes(".pdf") && (
+                    <p className="text-[9px] text-indigo-500/60 font-medium italic hidden md:block">* Use os controles do navegador para zoom ou download</p>
+                  )}
                 </div>
               </motion.div>
             </div>

@@ -72,17 +72,23 @@ export default function App() {
     }
   }, [isDarkMode]);
 
-  const handleLogin = async (email: string, token: string, userId?: string) => {
+  const handleLogin = async (email: string, token: string, userData?: any) => {
     setAuthToken(token);
-    if (userId) {
-      setUser({ email, id: userId });
+    if (userData) {
+      setUser(userData);
     } else {
-      // Fetch user ID from /api/auth/me
+      // Fetch full user data from /api/auth/me
       try {
         const res = await apiFetch("/api/auth/me");
-        if (res.ok) { const d = await res.json(); setUser(d.user); }
-        else setUser({ email });
-      } catch { setUser({ email }); }
+        if (res.ok) {
+          const d = await res.json();
+          setUser(d.user);
+        } else {
+          setUser({ email });
+        }
+      } catch {
+        setUser({ email });
+      }
     }
   };
 
@@ -111,6 +117,7 @@ export default function App() {
     <ToastProvider>
       <AppContent
         user={user}
+        onUserUpdate={setUser}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         selectedGroup={selectedGroup}
@@ -128,7 +135,7 @@ export default function App() {
 }
 
 function AppContent({
-  user, activeTab, setActiveTab, selectedGroup, setSelectedGroup,
+  user, onUserUpdate, activeTab, setActiveTab, selectedGroup, setSelectedGroup,
   isMobileMenuOpen, setIsMobileMenuOpen, isDarkMode, setIsDarkMode,
   toggleDarkMode, handleLogout, isAdmin
 }: any) {
@@ -379,19 +386,14 @@ function AppContent({
                               });
 
                               if (updateRes.ok) {
+                                const updateData = await updateRes.json();
                                 showToast("Documento atualizado!", "success");
-                                // Refresh user data
-                                const meRes = await apiFetch("/api/auth/me");
-                                if (meRes.ok) {
-                                  const meData = await meRes.json();
-                                  user.identityDocUrl = meData.user.identityDocUrl;
-                                  // Update the parent state if possible, but for now we manually update the ref if it's passed down
-                                  // Actually AppContent receives user as prop, but we might need to update the state in App
-                                  // Since user is passed as prop, we might need a way to refresh it.
-                                  // For now, let's assume the user object is mutable or the next re-render will fix it.
-                                  // Better: use a callback if available.
-                                }
-                                window.location.reload(); // Quick fix to refresh state for now
+
+                                // Update global user state
+                                onUserUpdate((prev: User) => ({
+                                  ...prev,
+                                  identityDocUrl: updateData.identityDocUrl
+                                }));
                               }
                             }
                           } catch (err) {

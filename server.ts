@@ -231,6 +231,7 @@ async function startServer() {
         where: { id: (req as any).user.id },
         data: { identityDocUrl }
       });
+      console.log(`[IDENTITY_UPDATE] User ${(req as any).user.id} updated with ${identityDocUrl}`);
       res.json({ success: true, identityDocUrl: (updatedUser as any).identityDocUrl });
     } catch (err) {
       console.error("Error updating identity doc:", err);

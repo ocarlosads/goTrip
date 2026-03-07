@@ -58,7 +58,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
 
       if (res.ok) {
         const data = await res.json();
-        onLogin(data.user.email, data.token, data.user.id);
+        onLogin(data.user.email, data.token, data.user);
       } else {
         const data = await res.json();
         setError(data.details ? `Falha Google: ${data.details}` : data.error || "Falha ao entrar com Google.");
@@ -90,7 +90,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
         if (mode === "register") {
           setMode("verify");
         } else {
-          onLogin(email, data.token, data.user?.id);
+          onLogin(email, data.token, data.user);
         }
       } else {
         if (data.needsVerification) {
@@ -122,7 +122,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
 
       const data = await res.json();
       if (res.ok) {
-        onLogin(email, data.token, data.user?.id);
+        onLogin(email, data.token, data.user);
       } else {
         setError(data.error || "Código inválido");
       }
