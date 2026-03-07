@@ -639,14 +639,34 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                       </div>
                       {flight.passengers.length > 0 && (
                         <div className="mt-6 pt-4 border-t border-gray-50 dark:border-gray-800 flex flex-col gap-3">
-                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Documentos por Passageiro:</p>
-                          {flight.passengers.map(p => (
-                            <div key={p.id} className="space-y-2">
-                              <div className="flex items-center gap-2 mb-1">
-                                <div className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-[8px] font-bold text-indigo-600">
+                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Seus Documentos e de outros passageiros:</p>
+                          {[...flight.passengers].sort((a, b) => a.userId === currentUserId ? -1 : b.userId === currentUserId ? 1 : 0).map(p => (
+                            <div key={p.id} className={cn(
+                              "p-3 rounded-2xl border transition-all",
+                              p.userId === currentUserId
+                                ? "bg-indigo-50/30 border-indigo-100 dark:bg-indigo-900/10 dark:border-indigo-900/30 shadow-sm"
+                                : "bg-transparent border-transparent"
+                            )}>
+                              <div className="flex items-center gap-2 mb-2">
+                                <div className={cn(
+                                  "w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-colors",
+                                  p.userId === currentUserId
+                                    ? "bg-indigo-600 text-white"
+                                    : "bg-gray-100 dark:bg-gray-800 text-gray-500"
+                                )}>
                                   {p.user?.name?.charAt(0) || p.user?.email.charAt(0)}
                                 </div>
-                                <span className="text-[10px] font-bold text-gray-700 dark:text-gray-300">{p.userId === currentUserId ? "Meus Documentos" : (p.user?.name || p.user?.email)}</span>
+                                <span className={cn(
+                                  "text-[10px] font-bold transition-colors",
+                                  p.userId === currentUserId ? "text-indigo-600 dark:text-indigo-400" : "text-gray-500"
+                                )}>
+                                  {p.userId === currentUserId ? "Meus Documentos (Você)" : (p.user?.name || p.user?.email)}
+                                </span>
+                                {p.userId === currentUserId && (
+                                  <div className="ml-auto px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 rounded text-[8px] font-bold uppercase tracking-tighter">
+                                    Principal
+                                  </div>
+                                )}
                               </div>
                               <div className="grid grid-cols-2 gap-2">
                                 {p.boardingPassUrl ? (
@@ -655,13 +675,18 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                                       setViewingBoardingPassUrl(p.boardingPassUrl!);
                                       setIsBoardingPassModalOpen(true);
                                     }}
-                                    className="py-2 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-xl text-[9px] font-bold hover:bg-emerald-100 transition-all flex items-center justify-center gap-1.5 border border-emerald-100/30"
+                                    className={cn(
+                                      "py-2.5 rounded-xl text-[10px] font-bold transition-all flex items-center justify-center gap-1.5 border",
+                                      p.userId === currentUserId
+                                        ? "bg-emerald-600 text-white border-emerald-500 shadow-md shadow-emerald-500/10 active:scale-95"
+                                        : "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border-emerald-100/30"
+                                    )}
                                   >
-                                    <ShieldCheck className="w-3 h-3" /> Cartão
+                                    <ShieldCheck className="w-3.5 h-3.5" /> Cartão
                                   </button>
                                 ) : (
-                                  <div className="py-2 bg-gray-50 dark:bg-gray-800/40 text-gray-400 rounded-xl text-[9px] font-bold flex items-center justify-center gap-1.5 border border-transparent">
-                                    <Plus className="w-3 h-3" /> Sem Cartão
+                                  <div className="py-2.5 bg-gray-50 dark:bg-gray-800/40 text-gray-400 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1.5 border border-transparent italic">
+                                    <Plus className="w-3.5 h-3.5" /> Sem Cartão
                                   </div>
                                 )}
                                 {p.identityDocUrl ? (
@@ -670,13 +695,18 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                                       setViewingBoardingPassUrl(p.identityDocUrl!);
                                       setIsBoardingPassModalOpen(true);
                                     }}
-                                    className="py-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-xl text-[9px] font-bold hover:bg-indigo-100 transition-all flex items-center justify-center gap-1.5 border border-indigo-100/30"
+                                    className={cn(
+                                      "py-2.5 rounded-xl text-[10px] font-bold transition-all flex items-center justify-center gap-1.5 border",
+                                      p.userId === currentUserId
+                                        ? "bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-500/10 active:scale-95"
+                                        : "bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 border-indigo-100/30"
+                                    )}
                                   >
-                                    <CreditCard className="w-3 h-3" /> RG/CNH
+                                    <CreditCard className="w-3.5 h-3.5" /> RG/CNH
                                   </button>
                                 ) : (
-                                  <div className="py-2 bg-gray-50 dark:bg-gray-800/40 text-gray-400 rounded-xl text-[9px] font-bold flex items-center justify-center gap-1.5 border border-transparent">
-                                    <Plus className="w-3 h-3" /> Sem RG/CNH
+                                  <div className="py-2.5 bg-gray-50 dark:bg-gray-800/40 text-gray-400 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1.5 border border-transparent italic">
+                                    <Plus className="w-3.5 h-3.5" /> Sem RG/CNH
                                   </div>
                                 )}
                               </div>
