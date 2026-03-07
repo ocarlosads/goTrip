@@ -26,6 +26,7 @@ model User {
   splits           ExpenseSplit[]
   flights          Flight[]
   flightPass       FlightPassenger[]
+  stayPass         StayMember[]
   ownedGroups      Group[]           @relation("GroupOwner")
   memberships      Membership[]
   votes            Vote[]
@@ -117,14 +118,30 @@ model FlightPassenger {
 }
 
 model Stay {
-  id        String    @id @default(cuid())
-  groupId   String
-  name      String
-  address   String?
-  checkIn   DateTime?
-  checkOut  DateTime?
-  createdAt DateTime  @default(now())
-  group     Group     @relation(fields: [groupId], references: [id])
+  id              String       @id @default(cuid())
+  groupId         String
+  name            String
+  address         String?
+  lat             Float?
+  lng             Float?
+  googlePlaceId   String?
+  checkIn         DateTime?
+  checkOut        DateTime?
+  createdAt       DateTime     @default(now())
+  group           Group        @relation(fields: [groupId], references: [id])
+  members         StayMember[]
+}
+
+model StayMember {
+  id                 String   @id @default(cuid())
+  stayId             String
+  userId             String
+  bookingVoucherUrl  String?
+  createdAt          DateTime @default(now())
+  stay               Stay     @relation(fields: [stayId], references: [id], onDelete: Cascade)
+  user               User     @relation(fields: [userId], references: [id])
+
+  @@unique([stayId, userId])
 }
 
 model Vote {

@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Calendar, Clock, MapPin, Plus, Trash2, X, Plane, Hotel, Navigation, Loader2, Car, Shield, ShieldCheck, ArrowRight, ArrowLeftRight, CreditCard, Info, Pencil } from "lucide-react";
+import { Calendar, Clock, MapPin, Plus, Trash2, X, Plane, Hotel, Navigation, Loader2, Car, Shield, ShieldCheck, ArrowRight, ArrowLeftRight, CreditCard, Info, Pencil, Search } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { apiFetch } from "../../lib/api";
 import { useToast } from "../../context/ToastContext";
@@ -53,8 +53,25 @@ interface Stay {
   id: string;
   name: string;
   address: string | null;
+  lat: number | null;
+  lng: number | null;
+  googlePlaceId: string | null;
   checkIn: string | null;
   checkOut: string | null;
+  members: StayMember[];
+}
+
+interface StayMember {
+  id: string;
+  stayId: string;
+  userId: string;
+  bookingVoucherUrl: string | null;
+  createdAt: string;
+  user?: {
+    id: string;
+    name: string | null;
+    email: string;
+  };
 }
 
 interface CarRental {
@@ -116,6 +133,9 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
   const [isShareFlightModalOpen, setIsShareFlightModalOpen] = useState(false);
   const [sharingFlightId, setSharingFlightId] = useState<string | null>(null);
   const [sharingMemberBP, setSharingMemberBP] = useState<string>("");
+  const [isShareStayModalOpen, setIsShareStayModalOpen] = useState(false);
+  const [sharingStayId, setSharingStayId] = useState<string | null>(null);
+  const [sharingStayVoucher, setSharingStayVoucher] = useState<string>("");
 
   // Day form
   const [newDayDate, setNewDayDate] = useState("");
@@ -125,6 +145,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
   const [newActivityTime, setNewActivityTime] = useState("");
   const [newActivityDesc, setNewActivityDesc] = useState("");
   const [newActivityLoc, setNewActivityLoc] = useState("");
+  const stayAutocompleteRef = useRef<HTMLInputElement>(null);
   const [newActivityType, setNewActivityType] = useState("activity");
 
   // Flight form
@@ -165,6 +186,9 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
   // Stay form
   const [sName, setSName] = useState("");
   const [sAddress, setSAddress] = useState("");
+  const [sLat, setSLat] = useState<number | null>(null);
+  const [sLng, setSLng] = useState<number | null>(null);
+  const [sPlaceId, setSPlaceId] = useState<string | null>(null);
   const [sCheckIn, setSCheckIn] = useState("");
   const [sCheckOut, setSCheckOut] = useState("");
 
@@ -221,6 +245,35 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
     }
     fetchAll();
   }, [groupId, initialData]);
+
+  useEffect(() => {
+    // Load Google Maps script if not already loaded
+    if (typeof window !== "undefined" && !(window as any).google) {
+      const script = document.createElement("script");
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ""}&libraries=places`;
+      script.async = true;
+      script.defer = true;
+      document.head.appendChild(script);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isAddStayModalOpen && stayAutocompleteRef.current && (window as any).google) {
+      const autocomplete = new (window as any).google.maps.places.Autocomplete(stayAutocompleteRef.current, {
+        fields: ["formatted_address", "geometry", "name", "place_id"],
+      });
+      autocomplete.addListener("place_changed", () => {
+        const place = autocomplete.getPlace();
+        if (place.name) setSName(place.name);
+        if (place.formatted_address) setSAddress(place.formatted_address);
+        if (place.geometry?.location) {
+          setSLat(place.geometry.location.lat());
+          setSLng(place.geometry.location.lng());
+        }
+        if (place.place_id) setSPlaceId(place.place_id);
+      });
+    }
+  }, [isAddStayModalOpen]);
 
   function groupItemsByDate(items: ItineraryItem[]): GroupedDay[] {
     const map: Record<string, GroupedDay> = {};
@@ -287,6 +340,22 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
         await fetchAll();
         setIsShareFlightModalOpen(false);
         setSharingMemberBP("");
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const handleShareStay = async (userId: string) => {
+    if (!sharingStayId) return;
+    try {
+      const res = await apiFetch(`/api/stays/${sharingStayId}/share`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, bookingVoucherUrl: sharingStayVoucher }),
+      });
+      if (res.ok) {
+        await fetchAll();
+        setIsShareStayModalOpen(false);
+        setSharingStayVoucher("");
       }
     } catch (err) { console.error(err); }
   };
@@ -364,7 +433,15 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
       const res = await apiFetch(editingStayId ? `/api/stays/${editingStayId}` : `/api/groups/${groupId}/stays`, {
         method: editingStayId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: sName, address: sAddress, checkIn: sCheckIn, checkOut: sCheckOut }),
+        body: JSON.stringify({
+          name: sName,
+          address: sAddress,
+          lat: sLat,
+          lng: sLng,
+          googlePlaceId: sPlaceId,
+          checkIn: sCheckIn,
+          checkOut: sCheckOut
+        }),
       });
       if (res.ok) {
         const stay = await res.json();
@@ -375,7 +452,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
         }
         setIsAddStayModalOpen(false);
         setEditingStayId(null);
-        setSName(""); setSAddress(""); setSCheckIn(""); setSCheckOut("");
+        setSName(""); setSAddress(""); setSLat(null); setSLng(null); setSPlaceId(null); setSCheckIn(""); setSCheckOut("");
       }
     } catch (err) { console.error(err); }
   };
@@ -832,6 +909,9 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                             setEditingStayId(stay.id);
                             setSName(stay.name);
                             setSAddress(stay.address || "");
+                            setSLat(stay.lat);
+                            setSLng(stay.lng);
+                            setSPlaceId(stay.googlePlaceId);
                             setSCheckIn(stay.checkIn ? new Date(stay.checkIn).toISOString().split('T')[0] : "");
                             setSCheckOut(stay.checkOut ? new Date(stay.checkOut).toISOString().split('T')[0] : "");
                             setIsAddStayModalOpen(true);
@@ -846,9 +926,23 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                         <div className="p-3 bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 rounded-2xl">
                           <Hotel className="w-6 h-6" />
                         </div>
-                        <div>
+                        <div className="flex-1">
                           <h4 className="font-bold text-gray-900 dark:text-white">{stay.name}</h4>
-                          {stay.address && <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 mt-1"><MapPin className="w-3 h-3" /> {stay.address}</p>}
+                          {stay.address && (
+                            <div className="flex flex-col gap-1 mt-1">
+                              <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1"><MapPin className="w-3 h-3" /> {stay.address}</p>
+                              {stay.lat && stay.lng && (
+                                <a
+                                  href={`https://www.google.com/maps/search/?api=1&query=${stay.lat},${stay.lng}&query_place_id=${stay.googlePlaceId || ""}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 font-bold w-fit"
+                                >
+                                  <Navigation className="w-2.5 h-2.5" /> Ver no Mapa
+                                </a>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-50 dark:border-gray-800">
@@ -859,6 +953,73 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                         <div className="bg-gray-50/50 dark:bg-gray-800/30 p-3 rounded-2xl">
                           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Check-out</p>
                           <p className="text-sm font-bold text-gray-900 dark:text-white">{stay.checkOut ? new Date(stay.checkOut).toLocaleDateString("pt-BR") : "—"}</p>
+                        </div>
+                      </div>
+
+                      {/* Hóspedes Section */}
+                      <div className="mt-4 pt-4 border-t border-gray-50 dark:border-gray-800">
+                        <div className="flex items-center justify-between mb-3">
+                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Hóspedes</p>
+                          <button
+                            onClick={() => { setSharingStayId(stay.id); setIsShareStayModalOpen(true); }}
+                            className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
+                          >
+                            <Plus className="w-3 h-3" /> Vincular Membro
+                          </button>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {(stay.members || []).map((m) => (
+                            <div key={m.id} className="flex items-center gap-2 bg-gray-50/80 dark:bg-gray-800/50 p-1.5 pr-3 rounded-full border border-gray-100 dark:border-gray-800 group/member">
+                              <div className="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase border border-indigo-200 dark:border-indigo-800">
+                                {m.user?.name?.[0] || m.user?.email?.[0] || "?"}
+                              </div>
+                              <div className="flex flex-col">
+                                <p className="text-[10px] font-bold text-gray-900 dark:text-white truncate max-w-[80px]">
+                                  {m.user?.id === currentUserId ? "Você" : (m.user?.name || m.user?.email.split('@')[0])}
+                                </p>
+                                <div className="flex items-center gap-2">
+                                  {m.bookingVoucherUrl ? (
+                                    <button
+                                      onClick={() => { setViewingBoardingPassUrl(m.bookingVoucherUrl || ""); setIsBoardingPassModalOpen(true); }}
+                                      className="text-[9px] text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-0.5 font-medium"
+                                    >
+                                      <ShieldCheck className="w-2.5 h-2.5" /> Comprovante
+                                    </button>
+                                  ) : m.user?.id === currentUserId ? (
+                                    <div className="flex items-center gap-1 relative">
+                                      <label className="text-[9px] text-amber-600 dark:text-amber-400 font-bold flex items-center gap-0.5 cursor-pointer hover:underline">
+                                        <Plus className="w-2 h-2" /> Voucher
+                                        <input
+                                          type="file"
+                                          className="hidden"
+                                          accept=".pdf,image/*"
+                                          onChange={async (e) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) {
+                                              try {
+                                                const url = await handleFileUpload(file);
+                                                await apiFetch(`/api/stays/members/${m.id}`, {
+                                                  method: "PATCH",
+                                                  headers: { "Content-Type": "application/json" },
+                                                  body: JSON.stringify({ bookingVoucherUrl: url }),
+                                                });
+                                                await fetchAll();
+                                              } catch (err) { console.error(err); }
+                                            }
+                                          }}
+                                        />
+                                      </label>
+                                    </div>
+                                  ) : (
+                                    <span className="text-[9px] text-gray-400 italic">Sem voucher</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                          {(stay.members || []).length === 0 && (
+                            <p className="text-[10px] text-gray-400 italic py-1">Nenhum hóspede vinculado.</p>
+                          )}
                         </div>
                       </div>
                     </motion.div>
@@ -1215,11 +1376,24 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                 </button>
               </div>
               <form onSubmit={handleAddStay} className="space-y-4">
-                <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Nome do Hotel/Airbnb</label><input type="text" value={sName} onChange={(e) => setSName(e.target.value)} placeholder="Hotel Paradiso" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all" required /></div>
-                <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Endereço</label><input type="text" value={sAddress} onChange={(e) => setSAddress(e.target.value)} placeholder="Rua das Flores, 123" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all" /></div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Check-in</label><input type="date" value={sCheckIn} onChange={(e) => setSCheckIn(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none transition-all" /></div>
-                  <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Check-out</label><input type="date" value={sCheckOut} onChange={(e) => setSCheckOut(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none transition-all" /></div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 uppercase mb-1 flex items-center gap-1">
+                    <Search className="w-3 h-3" /> Buscar no Google Maps
+                  </label>
+                  <input
+                    ref={stayAutocompleteRef}
+                    type="text"
+                    placeholder="Pesquisar hotel, airbnb ou local..."
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
+                  />
+                </div>
+                <div className="grid grid-cols-1 gap-4 pt-2 border-t border-gray-100 dark:border-gray-800">
+                  <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Nome</label><input type="text" value={sName} onChange={(e) => setSName(e.target.value)} placeholder="Nome do local" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm" required /></div>
+                  <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Endereço</label><input type="text" value={sAddress} onChange={(e) => setSAddress(e.target.value)} placeholder="Endereço completo" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm" /></div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Check-in</label><input type="date" value={sCheckIn} onChange={(e) => setSCheckIn(e.target.value)} className="w-full px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none transition-all text-sm" /></div>
+                  <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Check-out</label><input type="date" value={sCheckOut} onChange={(e) => setSCheckOut(e.target.value)} className="w-full px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none transition-all text-sm" /></div>
                 </div>
                 <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg transition-all mt-4">Salvar Hospedagem</button>
               </form>
@@ -1437,6 +1611,69 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                     </div>
                   );
                 })}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isShareStayModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsShareStayModalOpen(false)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="relative bg-white dark:bg-gray-900 w-full max-w-sm rounded-[32px] shadow-2xl p-6 transition-colors overflow-hidden">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-amber-50 dark:bg-amber-900/30 rounded-xl">
+                    <Hotel className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">Vincular Hóspede</h3>
+                </div>
+                <button onClick={() => setIsShareStayModalOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"><X className="w-5 h-5 text-gray-400" /></button>
+              </div>
+
+              <div className="space-y-3 mt-4">
+                <div className="p-4 bg-amber-50/50 dark:bg-amber-900/10 rounded-2xl mb-4 border border-amber-100/50 dark:border-amber-900/30">
+                  <p className="text-xs text-amber-700 dark:text-amber-300 leading-relaxed font-medium">
+                    Selecione um membro do grupo para vincular a esta hospedagem.
+                  </p>
+                </div>
+
+                <div className="max-h-[300px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                  {members.map((member) => {
+                    const isAlreadyMember = stays.find(s => s.id === sharingStayId)?.members.find((m: any) => m.userId === member.id);
+                    return (
+                      <button
+                        key={member.id}
+                        disabled={!!isAlreadyMember}
+                        onClick={() => handleShareStay(member.id)}
+                        className={cn(
+                          "w-full flex items-center justify-between p-4 rounded-2xl border transition-all group/item",
+                          isAlreadyMember
+                            ? "bg-gray-50 dark:bg-gray-800/50 border-gray-100 dark:border-gray-800 opacity-60 cursor-not-allowed"
+                            : "bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-800 hover:border-amber-200 dark:hover:border-amber-700 hover:bg-amber-50/30 dark:hover:bg-amber-900/20 shadow-sm"
+                        )}
+                      >
+                        <div className="flex items-center gap-3 text-left">
+                          <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center text-amber-600 dark:text-amber-400 font-bold">
+                            {member.name?.[0]?.toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="font-bold text-gray-900 dark:text-white text-sm">{member.name}</p>
+                            <p className="text-[10px] text-gray-400">{member.email}</p>
+                          </div>
+                        </div>
+                        {isAlreadyMember ? (
+                          <div className="bg-amber-100 dark:bg-amber-900/40 p-1.5 rounded-full">
+                            <ShieldCheck className="w-4 h-4 text-amber-600" />
+                          </div>
+                        ) : (
+                          <Plus className="w-5 h-5 text-gray-300 group-hover/item:text-amber-500 transition-colors" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </motion.div>
           </div>

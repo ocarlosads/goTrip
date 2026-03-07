@@ -397,7 +397,7 @@ async function startServer() {
           include: { passengers: { include: { user: { select: { id: true, name: true, email: true } } } } },
           orderBy: { departureTime: "asc" }
         }),
-        prisma.stay.findMany({ where: { groupId }, orderBy: { checkIn: "asc" } }),
+        prisma.stay.findMany({ where: { groupId }, include: { members: { include: { user: true } } }, orderBy: { checkIn: "asc" } }),
         prisma.expense.findMany({
           where: { groupId },
           include: { paidBy: true, splits: { include: { user: true } } },
@@ -782,14 +782,15 @@ async function startServer() {
 
   app.post("/api/groups/:groupId/stays", authenticate, async (req: any, res) => {
     const { groupId } = req.params;
-    const { name, address, checkIn, checkOut } = req.body;
+    const { name, address, lat, lng, googlePlaceId, checkIn, checkOut } = req.body;
     try {
       const stay = await prisma.stay.create({
         data: {
-          groupId, name, address,
+          groupId, name, address, lat, lng, googlePlaceId,
           checkIn: checkIn ? new Date(checkIn) : null,
           checkOut: checkOut ? new Date(checkOut) : null,
         },
+        include: { members: { include: { user: true } } }
       });
       res.json(stay);
     } catch (err) {
@@ -800,18 +801,46 @@ async function startServer() {
 
   app.patch("/api/stays/:stayId", authenticate, async (req, res) => {
     const { stayId } = req.params;
-    const { name, address, checkIn, checkOut } = req.body;
+    const { name, address, lat, lng, googlePlaceId, checkIn, checkOut } = req.body;
     try {
       const stay = await prisma.stay.update({
         where: { id: stayId },
         data: {
-          name, address,
+          name, address, lat, lng, googlePlaceId,
           checkIn: checkIn ? new Date(checkIn) : null,
           checkOut: checkOut ? new Date(checkOut) : null
-        }
+        },
+        include: { members: { include: { user: true } } }
       });
       res.json(stay);
     } catch { res.status(500).json({ error: "Failed to update stay" }); }
+  });
+
+  app.post("/api/stays/:stayId/share", authenticate, async (req: any, res) => {
+    const { stayId } = req.params;
+    const { userId, bookingVoucherUrl } = req.body;
+    try {
+      const member = await prisma.stayMember.create({
+        data: { stayId, userId, bookingVoucherUrl },
+        include: { user: true }
+      });
+      res.json(member);
+    } catch (err) {
+      console.error("Error sharing stay:", err);
+      res.status(500).json({ error: "Failed to share stay" });
+    }
+  });
+
+  app.patch("/api/stays/members/:id", authenticate, async (req: any, res) => {
+    const { id } = req.params;
+    const { bookingVoucherUrl } = req.body;
+    try {
+      const updated = await prisma.stayMember.update({
+        where: { id },
+        data: { bookingVoucherUrl }
+      });
+      res.json(updated);
+    } catch { res.status(500).json({ error: "Failed to update stay member" }); }
   });
 
   app.delete("/api/stays/:stayId", authenticate, async (req, res) => {
