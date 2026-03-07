@@ -1081,47 +1081,57 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                           <Car className="w-6 h-6" />
                         </div>
                         <div className="flex-1">
-                          <div className="flex items-center justify-between gap-2">
-                            <h4 className="font-bold text-gray-900 dark:text-white truncate">{rental.company}</h4>
-                            <div className="flex items-center gap-2">
-                              {rental.bookingVoucherUrl ? (
-                                <button
-                                  onClick={() => { setViewingBoardingPassUrl(rental.bookingVoucherUrl || ""); setIsBoardingPassModalOpen(true); }}
-                                  className="text-[10px] text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 font-bold whitespace-nowrap"
-                                >
-                                  <ShieldCheck className="w-3.5 h-3.5" /> Ver Comprovante
-                                </button>
-                              ) : (
-                                <label className="text-[10px] text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1 cursor-pointer hover:underline whitespace-nowrap">
-                                  <Plus className="w-3.5 h-3.5" /> Anexar Comprovante
-                                  <input
-                                    type="file"
-                                    className="hidden"
-                                    accept=".pdf,image/*"
-                                    onChange={async (e) => {
-                                      const file = e.target.files?.[0];
-                                      if (file) {
-                                        try {
-                                          const url = await handleFileUpload(file);
-                                          await apiFetch(`/api/rentals/${rental.id}`, {
-                                            method: "PATCH",
-                                            headers: { "Content-Type": "application/json" },
-                                            body: JSON.stringify({ bookingVoucherUrl: url }),
-                                          });
-                                          await fetchAll();
-                                          showToast("Comprovante anexado!", "success");
-                                        } catch (err) {
-                                          console.error(err);
-                                          showToast("Erro ao anexar comprovante", "error");
-                                        }
+                          <h4 className="font-bold text-gray-900 dark:text-white truncate">{rental.company}</h4>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{rental.model || "Modelo não informado"}</p>
+
+                          <div className="mt-1.5 flex flex-wrap items-center gap-3">
+                            {rental.pickupLocation && (
+                              <a
+                                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(rental.pickupLocation)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 font-bold w-fit"
+                              >
+                                <Navigation className="w-2.5 h-2.5" /> Ver no Maps
+                              </a>
+                            )}
+
+                            {rental.bookingVoucherUrl ? (
+                              <button
+                                onClick={() => { setViewingBoardingPassUrl(rental.bookingVoucherUrl || ""); setIsBoardingPassModalOpen(true); }}
+                                className="text-[10px] text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 font-bold whitespace-nowrap"
+                              >
+                                <ShieldCheck className="w-3.5 h-3.5" /> Ver Comprovante
+                              </button>
+                            ) : (
+                              <label className="text-[10px] text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1 cursor-pointer hover:underline whitespace-nowrap">
+                                <Plus className="w-3.5 h-3.5" /> Anexar Comprovante
+                                <input
+                                  type="file"
+                                  className="hidden"
+                                  accept=".pdf,image/*"
+                                  onChange={async (e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                      try {
+                                        const url = await handleFileUpload(file);
+                                        await apiFetch(`/api/rentals/${rental.id}`, {
+                                          method: "PATCH",
+                                          headers: { "Content-Type": "application/json" },
+                                          body: JSON.stringify({ bookingVoucherUrl: url }),
+                                        });
+                                        await fetchAll();
+                                        showToast("Comprovante anexado!", "success");
+                                      } catch (err) {
+                                        console.error(err);
+                                        showToast("Erro ao anexar comprovante", "error");
                                       }
-                                    }}
-                                  />
-                                </label>
-                              )}
-                            </div>
+                                    }
+                                  }}
+                                />
+                              </label>
+                            )}
                           </div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{rental.model || "Modelo não informado"}</p>
                           {rental.confirmationCode && (
                             <span className="inline-flex items-center gap-1.5 mt-2 px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-[10px] font-bold text-gray-600 dark:text-gray-400 rounded-md">
                               <CreditCard className="w-3 h-3" /> {rental.confirmationCode}
