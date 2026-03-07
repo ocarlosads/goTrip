@@ -7,7 +7,6 @@
         "startCommand": "npm run start",
         "restartPolicyType": "ON_FAILURE",
         "healthcheckPath": "/api/health",
-        "healthcheckTimeout": 100,
-        "serviceName": "goTrip"
+        "healthcheckTimeout": 100
     }
 }
