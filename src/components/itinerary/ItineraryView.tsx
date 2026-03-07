@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Calendar, Clock, MapPin, Plus, Trash2, X, Plane, Hotel, Navigation, Loader2 } from "lucide-react";
+import { Calendar, Clock, MapPin, Plus, Trash2, X, Plane, Hotel, Navigation, Loader2, Car, Shield, ShieldCheck, ArrowRight, ArrowLeftRight, CreditCard, Info } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { apiFetch } from "../../lib/api";
 
@@ -38,12 +38,34 @@ interface Stay {
   checkOut: string | null;
 }
 
+interface CarRental {
+  id: string;
+  company: string;
+  model: string | null;
+  pickupLocation: string | null;
+  pickupTime: string | null;
+  dropoffLocation: string | null;
+  dropoffTime: string | null;
+  confirmationCode: string | null;
+}
+
+interface Insurance {
+  id: string;
+  provider: string;
+  policyNumber: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  contactInfo: string | null;
+}
+
 interface ItineraryViewProps {
   groupId: string;
   initialData?: {
     itinerary: ItineraryItem[];
     flights: Flight[];
     stays: Stay[];
+    carRentals: CarRental[];
+    insurances: Insurance[];
   };
 }
 
@@ -51,14 +73,19 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
   const [days, setDays] = useState<GroupedDay[]>(initialData ? groupItemsByDate(initialData.itinerary) : []);
   const [flights, setFlights] = useState<Flight[]>(initialData?.flights || []);
   const [stays, setStays] = useState<Stay[]>(initialData?.stays || []);
+  const [carRentals, setCarRentals] = useState<CarRental[]>(initialData?.carRentals || []);
+  const [insurances, setInsurances] = useState<Insurance[]>(initialData?.insurances || []);
   const [isLoading, setIsLoading] = useState(!initialData);
   const [activeSection, setActiveSection] = useState<"days" | "logistics">("days");
+  const [logisticsTab, setLogisticsTab] = useState<"all" | "flights" | "stays" | "rentals" | "insurances">("all");
 
   // Modals
   const [isAddDayModalOpen, setIsAddDayModalOpen] = useState(false);
   const [isAddActivityModalOpen, setIsAddActivityModalOpen] = useState(false);
   const [isAddFlightModalOpen, setIsAddFlightModalOpen] = useState(false);
   const [isAddStayModalOpen, setIsAddStayModalOpen] = useState(false);
+  const [isAddRentalModalOpen, setIsAddRentalModalOpen] = useState(false);
+  const [isAddInsuranceModalOpen, setIsAddInsuranceModalOpen] = useState(false);
   const [selectedDayKey, setSelectedDayKey] = useState<string | null>(null);
 
   // Day form
@@ -78,6 +105,11 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
   const [fArrTime, setFArrTime] = useState("");
   const [fOrigin, setFOrigin] = useState("");
   const [fDest, setFDest] = useState("");
+  const [isRoundTrip, setIsRoundTrip] = useState(false);
+  const [rNumber, setRNumber] = useState("");
+  const [rAirline, setRAirline] = useState("");
+  const [rDepTime, setRDepTime] = useState("");
+  const [rArrTime, setRArrTime] = useState("");
 
   // Stay form
   const [sName, setSName] = useState("");
@@ -85,11 +117,29 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
   const [sCheckIn, setSCheckIn] = useState("");
   const [sCheckOut, setSCheckOut] = useState("");
 
+  // Car Rental form
+  const [crCompany, setCrCompany] = useState("");
+  const [crModel, setCrModel] = useState("");
+  const [crPickupLoc, setCrPickupLoc] = useState("");
+  const [crPickupTime, setCrPickupTime] = useState("");
+  const [crDropoffLoc, setCrDropoffLoc] = useState("");
+  const [crDropoffTime, setCrDropoffTime] = useState("");
+  const [crCode, setCrCode] = useState("");
+
+  // Insurance form
+  const [insProvider, setInsProvider] = useState("");
+  const [insPolicy, setInsPolicy] = useState("");
+  const [insStart, setInsStart] = useState("");
+  const [insEnd, setInsEnd] = useState("");
+  const [insContact, setInsContact] = useState("");
+
   useEffect(() => {
     if (initialData) {
       setDays(groupItemsByDate(initialData.itinerary));
       setFlights(initialData.flights);
       setStays(initialData.stays);
+      setCarRentals(initialData.carRentals);
+      setInsurances(initialData.insurances);
       setIsLoading(false);
       return;
     }
@@ -116,10 +166,12 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
   const fetchAll = async () => {
     setIsLoading(true);
     try {
-      const [itinRes, flightsRes, staysRes] = await Promise.all([
+      const [itinRes, flightsRes, staysRes, rentalsRes, insRes] = await Promise.all([
         apiFetch(`/api/groups/${groupId}/itinerary`),
         apiFetch(`/api/groups/${groupId}/flights`),
         apiFetch(`/api/groups/${groupId}/stays`),
+        apiFetch(`/api/groups/${groupId}/rentals`),
+        apiFetch(`/api/groups/${groupId}/insurances`),
       ]);
       if (itinRes.ok) {
         const items: ItineraryItem[] = await itinRes.json();
@@ -127,6 +179,8 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
       }
       if (flightsRes.ok) setFlights(await flightsRes.json());
       if (staysRes.ok) setStays(await staysRes.json());
+      if (rentalsRes.ok) setCarRentals(await rentalsRes.json());
+      if (insRes.ok) setInsurances(await insRes.json());
     } finally {
       setIsLoading(false);
     }
@@ -185,16 +239,33 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
   const handleAddFlight = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const payload: any = {
+        number: fNumber, airline: fAirline, departureTime: fDepTime, arrivalTime: fArrTime, origin: fOrigin, destination: fDest,
+        isRoundTrip
+      };
+
+      if (isRoundTrip) {
+        payload.returnFlight = {
+          number: rNumber,
+          airline: rAirline,
+          departureTime: rDepTime,
+          arrivalTime: rArrTime,
+          origin: fDest, // Inverte
+          destination: fOrigin
+        };
+      }
+
       const res = await apiFetch(`/api/groups/${groupId}/flights`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ number: fNumber, airline: fAirline, departureTime: fDepTime, arrivalTime: fArrTime, origin: fOrigin, destination: fDest }),
+        body: JSON.stringify(payload),
       });
       if (res.ok) {
-        const flight = await res.json();
-        setFlights((prev) => [...prev, flight]);
+        const newFlights = await res.json();
+        setFlights((prev) => [...prev, ...(Array.isArray(newFlights) ? newFlights : [newFlights])]);
         setIsAddFlightModalOpen(false);
         setFNumber(""); setFAirline(""); setFDepTime(""); setFArrTime(""); setFOrigin(""); setFDest("");
+        setIsRoundTrip(false); setRNumber(""); setRAirline(""); setRDepTime(""); setRArrTime("");
       }
     } catch (err) { console.error(err); }
   };
@@ -227,6 +298,54 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
     try {
       await apiFetch(`/api/stays/${id}`, { method: "DELETE" });
       setStays((prev) => prev.filter((s) => s.id !== id));
+    } catch (err) { console.error(err); }
+  };
+
+  const handleAddRental = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await apiFetch(`/api/groups/${groupId}/rentals`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ company: crCompany, model: crModel, pickupLocation: crPickupLoc, pickupTime: crPickupTime, dropoffLocation: crDropoffLoc, dropoffTime: crDropoffTime, confirmationCode: crCode }),
+      });
+      if (res.ok) {
+        const rental = await res.json();
+        setCarRentals((prev) => [...prev, rental]);
+        setIsAddRentalModalOpen(false);
+        setCrCompany(""); setCrModel(""); setCrPickupLoc(""); setCrPickupTime(""); setCrDropoffLoc(""); setCrDropoffTime(""); setCrCode("");
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const handleDeleteRental = async (id: string) => {
+    try {
+      await apiFetch(`/api/rentals/${id}`, { method: "DELETE" });
+      setCarRentals((prev) => prev.filter((r) => r.id !== id));
+    } catch (err) { console.error(err); }
+  };
+
+  const handleAddInsurance = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await apiFetch(`/api/groups/${groupId}/insurances`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider: insProvider, policyNumber: insPolicy, startDate: insStart, endDate: insEnd, contactInfo: insContact }),
+      });
+      if (res.ok) {
+        const ins = await res.json();
+        setInsurances((prev) => [...prev, ins]);
+        setIsAddInsuranceModalOpen(false);
+        setInsProvider(""); setInsPolicy(""); setInsStart(""); setInsEnd(""); setInsContact("");
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const handleDeleteInsurance = async (id: string) => {
+    try {
+      await apiFetch(`/api/insurances/${id}`, { method: "DELETE" });
+      setInsurances((prev) => prev.filter((i) => i.id !== id));
     } catch (err) { console.error(err); }
   };
 
@@ -336,67 +455,218 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
           )}
         </div>
       ) : (
-        <div className="space-y-8">
-          {/* Flights */}
-          <section>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2"><Plane className="w-5 h-5 text-indigo-600 dark:text-indigo-400" /> Voos e Transportes</h3>
-              <button onClick={() => setIsAddFlightModalOpen(true)} className="text-indigo-600 dark:text-indigo-400 text-sm font-bold hover:underline flex items-center gap-1"><Plus className="w-4 h-4" /> Adicionar Voo</button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {flights.map((flight) => (
-                <div key={flight.id} className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm relative group transition-colors">
-                  <button onClick={() => handleDeleteFlight(flight.id)} className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 p-2 hover:bg-red-50 dark:hover:bg-red-900/30 text-red-400 rounded-xl transition-all"><Trash2 className="w-4 h-4" /></button>
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-1 rounded-lg">{flight.airline} • {flight.number}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex-1">
-                      <p className="text-2xl font-bold text-gray-900 dark:text-white">{flight.departureTime ? new Date(flight.departureTime).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "--:--"}</p>
-                      <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">{flight.origin}</p>
-                    </div>
-                    <div className="flex flex-col items-center px-4">
-                      <Plane className="w-4 h-4 text-gray-300 dark:text-gray-700 rotate-90" />
-                      <div className="h-px w-12 bg-gray-100 dark:bg-gray-800 my-2"></div>
-                    </div>
-                    <div className="flex-1 text-right">
-                      <p className="text-2xl font-bold text-gray-900 dark:text-white">{flight.arrivalTime ? new Date(flight.arrivalTime).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "--:--"}</p>
-                      <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">{flight.destination}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-              {flights.length === 0 && <p className="text-sm text-gray-400 dark:text-gray-600 italic">Nenhum voo cadastrado.</p>}
-            </div>
-          </section>
+        <div className="space-y-6">
+          {/* Logistics Tabs */}
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2">
+            {[
+              { id: "all", label: "Tudo", icon: Navigation },
+              { id: "flights", label: "Voos", icon: Plane },
+              { id: "stays", label: "Hospedagem", icon: Hotel },
+              { id: "rentals", label: "Aluguel", icon: Car },
+              { id: "insurances", label: "Seguro", icon: ShieldCheck },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setLogisticsTab(tab.id as any)}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap border",
+                  logisticsTab === tab.id
+                    ? "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100 dark:shadow-none"
+                    : "bg-white dark:bg-gray-900 border-gray-100 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:border-indigo-200"
+                )}
+              >
+                <tab.icon className="w-3.5 h-3.5" /> {tab.label}
+              </button>
+            ))}
+          </div>
 
-          {/* Stays */}
-          <section>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2"><Hotel className="w-5 h-5 text-indigo-600 dark:text-indigo-400" /> Hospedagem</h3>
-              <button onClick={() => setIsAddStayModalOpen(true)} className="text-indigo-600 dark:text-indigo-400 text-sm font-bold hover:underline flex items-center gap-1"><Plus className="w-4 h-4" /> Adicionar Estadia</button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {stays.map((stay) => (
-                <div key={stay.id} className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm relative group transition-colors">
-                  <button onClick={() => handleDeleteStay(stay.id)} className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 p-2 hover:bg-red-50 dark:hover:bg-red-900/30 text-red-400 rounded-xl transition-all"><Trash2 className="w-4 h-4" /></button>
-                  <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{stay.name}</h4>
-                  {stay.address && <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 mb-4"><MapPin className="w-4 h-4" /><span className="text-xs">{stay.address}</span></div>}
-                  <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-50 dark:border-gray-800">
-                    <div>
-                      <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Check-in</p>
-                      <p className="text-sm font-bold text-gray-900 dark:text-white">{stay.checkIn ? new Date(stay.checkIn).toLocaleDateString("pt-BR") : "—"}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Check-out</p>
-                      <p className="text-sm font-bold text-gray-900 dark:text-white">{stay.checkOut ? new Date(stay.checkOut).toLocaleDateString("pt-BR") : "—"}</p>
-                    </div>
-                  </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Flights Section */}
+            {(logisticsTab === "all" || logisticsTab === "flights") && (
+              <section className="col-span-full space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2"><Plane className="w-5 h-5 text-indigo-600 dark:text-indigo-400" /> Voos</h3>
+                  <button onClick={() => setIsAddFlightModalOpen(true)} className="p-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl hover:bg-indigo-100 transition-colors"><Plus className="w-5 h-5" /></button>
                 </div>
-              ))}
-              {stays.length === 0 && <p className="text-sm text-gray-400 dark:text-gray-600 italic">Nenhuma hospedagem cadastrada.</p>}
-            </div>
-          </section>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {flights.map((flight) => (
+                    <motion.div layout key={flight.id} className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm relative group transition-colors">
+                      <button onClick={() => handleDeleteFlight(flight.id)} className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 p-2 hover:bg-red-50 dark:hover:bg-red-900/30 text-red-400 rounded-xl transition-all"><Trash2 className="w-4 h-4" /></button>
+                      <div className="flex items-center justify-between mb-4">
+                        <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-3 py-1 rounded-lg flex items-center gap-2">
+                          <Plane className="w-3 h-3" /> {flight.airline} • {flight.number}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex-1">
+                          <p className="text-2xl font-bold text-gray-900 dark:text-white">{flight.departureTime ? new Date(flight.departureTime).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "--:--"}</p>
+                          <div className="flex flex-col">
+                            <p className="text-sm font-bold text-gray-900 dark:text-white uppercase">{flight.origin}</p>
+                            <p className="text-[10px] text-gray-400">{flight.departureTime ? new Date(flight.departureTime).toLocaleDateString("pt-BR") : ""}</p>
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-center px-4">
+                          <Plane className="w-4 h-4 text-gray-300 dark:text-gray-700 rotate-90" />
+                          <div className="h-px w-12 bg-gray-100 dark:bg-gray-800 my-2"></div>
+                        </div>
+                        <div className="flex-1 text-right">
+                          <p className="text-2xl font-bold text-gray-900 dark:text-white">{flight.arrivalTime ? new Date(flight.arrivalTime).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "--:--"}</p>
+                          <div className="flex flex-col">
+                            <p className="text-sm font-bold text-gray-900 dark:text-white uppercase">{flight.destination}</p>
+                            <p className="text-[10px] text-gray-400">{flight.arrivalTime ? new Date(flight.arrivalTime).toLocaleDateString("pt-BR") : ""}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                  {flights.length === 0 && logisticsTab === "flights" && (
+                    <div className="col-span-full py-12 text-center bg-gray-50/50 dark:bg-gray-800/20 rounded-3xl border border-dashed border-gray-200 dark:border-gray-800">
+                      <Plane className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+                      <p className="text-sm text-gray-400 italic">Nenhum voo cadastrado.</p>
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {/* Stays Section */}
+            {(logisticsTab === "all" || logisticsTab === "stays") && (
+              <section className="col-span-full space-y-4 pt-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2"><Hotel className="w-5 h-5 text-indigo-600 dark:text-indigo-400" /> Hospedagem</h3>
+                  <button onClick={() => setIsAddStayModalOpen(true)} className="p-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl hover:bg-indigo-100 transition-colors"><Plus className="w-5 h-5" /></button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {stays.map((stay) => (
+                    <motion.div layout key={stay.id} className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm relative group transition-colors">
+                      <button onClick={() => handleDeleteStay(stay.id)} className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 p-2 hover:bg-red-50 dark:hover:bg-red-900/30 text-red-400 rounded-xl transition-all"><Trash2 className="w-4 h-4" /></button>
+                      <div className="flex items-start gap-4 mb-4">
+                        <div className="p-3 bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 rounded-2xl">
+                          <Hotel className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-gray-900 dark:text-white">{stay.name}</h4>
+                          {stay.address && <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 mt-1"><MapPin className="w-3 h-3" /> {stay.address}</p>}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-50 dark:border-gray-800">
+                        <div className="bg-gray-50/50 dark:bg-gray-800/30 p-3 rounded-2xl">
+                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Check-in</p>
+                          <p className="text-sm font-bold text-gray-900 dark:text-white">{stay.checkIn ? new Date(stay.checkIn).toLocaleDateString("pt-BR") : "—"}</p>
+                        </div>
+                        <div className="bg-gray-50/50 dark:bg-gray-800/30 p-3 rounded-2xl">
+                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Check-out</p>
+                          <p className="text-sm font-bold text-gray-900 dark:text-white">{stay.checkOut ? new Date(stay.checkOut).toLocaleDateString("pt-BR") : "—"}</p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                  {stays.length === 0 && logisticsTab === "stays" && (
+                    <div className="col-span-full py-12 text-center bg-gray-50/50 dark:bg-gray-800/20 rounded-3xl border border-dashed border-gray-200 dark:border-gray-800">
+                      <Hotel className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+                      <p className="text-sm text-gray-400 italic">Nenhuma hospedagem cadastrada.</p>
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {/* Car Rentals Section */}
+            {(logisticsTab === "all" || logisticsTab === "rentals") && (
+              <section className="col-span-full space-y-4 pt-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2"><Car className="w-5 h-5 text-indigo-600 dark:text-indigo-400" /> Aluguel de Carros</h3>
+                  <button onClick={() => setIsAddRentalModalOpen(true)} className="p-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl hover:bg-indigo-100 transition-colors"><Plus className="w-5 h-5" /></button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {carRentals.map((rental) => (
+                    <motion.div layout key={rental.id} className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm relative group transition-colors">
+                      <button onClick={() => handleDeleteRental(rental.id)} className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 p-2 hover:bg-red-50 dark:hover:bg-red-900/30 text-red-400 rounded-xl transition-all"><Trash2 className="w-4 h-4" /></button>
+                      <div className="flex items-start gap-4 mb-4">
+                        <div className="p-3 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-2xl">
+                          <Car className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-gray-900 dark:text-white">{rental.company}</h4>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{rental.model || "Modelo não informado"}</p>
+                          {rental.confirmationCode && (
+                            <span className="inline-flex items-center gap-1.5 mt-2 px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-[10px] font-bold text-gray-600 dark:text-gray-400 rounded-md">
+                              <CreditCard className="w-3 h-3" /> {rental.confirmationCode}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-50 dark:border-gray-800">
+                        <div className="bg-gray-50/50 dark:bg-gray-800/30 p-3 rounded-2xl">
+                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Retirada</p>
+                          <p className="text-sm font-bold text-gray-900 dark:text-white leading-tight">{rental.pickupTime ? new Date(rental.pickupTime).toLocaleDateString("pt-BR") : "—"}</p>
+                          <p className="text-[10px] text-gray-500 truncate">{rental.pickupLocation}</p>
+                        </div>
+                        <div className="bg-gray-50/50 dark:bg-gray-800/30 p-3 rounded-2xl">
+                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Devolução</p>
+                          <p className="text-sm font-bold text-gray-900 dark:text-white leading-tight">{rental.dropoffTime ? new Date(rental.dropoffTime).toLocaleDateString("pt-BR") : "—"}</p>
+                          <p className="text-[10px] text-gray-500 truncate">{rental.dropoffLocation}</p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                  {carRentals.length === 0 && logisticsTab === "rentals" && (
+                    <div className="col-span-full py-12 text-center bg-gray-50/50 dark:bg-gray-800/20 rounded-3xl border border-dashed border-gray-200 dark:border-gray-800">
+                      <Car className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+                      <p className="text-sm text-gray-400 italic">Nenhum aluguel cadastrado.</p>
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {/* Insurance Section */}
+            {(logisticsTab === "all" || logisticsTab === "insurances") && (
+              <section className="col-span-full space-y-4 pt-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2"><ShieldCheck className="w-5 h-5 text-indigo-600 dark:text-indigo-400" /> Seguro Viagem</h3>
+                  <button onClick={() => setIsAddInsuranceModalOpen(true)} className="p-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl hover:bg-indigo-100 transition-colors"><Plus className="w-5 h-5" /></button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {insurances.map((ins) => (
+                    <motion.div layout key={ins.id} className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm relative group transition-colors">
+                      <button onClick={() => handleDeleteInsurance(ins.id)} className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 p-2 hover:bg-red-50 dark:hover:bg-red-900/30 text-red-400 rounded-xl transition-all"><Trash2 className="w-4 h-4" /></button>
+                      <div className="flex items-start gap-4 mb-4">
+                        <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-2xl">
+                          <ShieldCheck className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-gray-900 dark:text-white">{ins.provider}</h4>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Apólice: {ins.policyNumber || "Não informada"}</p>
+                          {ins.contactInfo && (
+                            <div className="flex items-center gap-1.5 mt-2 text-xs text-indigo-600 dark:text-indigo-400 font-medium">
+                              <Info className="w-3.5 h-3.5" /> Emergência: {ins.contactInfo}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-50 dark:border-gray-800">
+                        <div className="bg-gray-50/50 dark:bg-gray-800/30 p-3 rounded-2xl">
+                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Início</p>
+                          <p className="text-sm font-bold text-gray-900 dark:text-white">{ins.startDate ? new Date(ins.startDate).toLocaleDateString("pt-BR") : "—"}</p>
+                        </div>
+                        <div className="bg-gray-50/50 dark:bg-gray-800/30 p-3 rounded-2xl">
+                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Fim</p>
+                          <p className="text-sm font-bold text-gray-900 dark:text-white">{ins.endDate ? new Date(ins.endDate).toLocaleDateString("pt-BR") : "—"}</p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                  {insurances.length === 0 && logisticsTab === "insurances" && (
+                    <div className="col-span-full py-12 text-center bg-gray-50/50 dark:bg-gray-800/20 rounded-3xl border border-dashed border-gray-200 dark:border-gray-800">
+                      <ShieldCheck className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+                      <p className="text-sm text-gray-400 italic">Nenhum seguro cadastrado.</p>
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+          </div>
         </div>
       )}
 
@@ -444,22 +714,93 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
         {isAddFlightModalOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsAddFlightModalOpen(false)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-            <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="relative bg-white dark:bg-gray-900 w-full max-w-md rounded-3xl shadow-2xl p-8 transition-colors">
-              <div className="flex items-center justify-between mb-6"><h2 className="text-2xl font-bold text-gray-900 dark:text-white">Adicionar Voo</h2><button onClick={() => setIsAddFlightModalOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"><X className="w-6 h-6 text-gray-400" /></button></div>
-              <form onSubmit={handleAddFlight} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div><label className="block text-xs font-bold text-gray-400 uppercase">Cia Aérea</label><input type="text" value={fAirline} onChange={(e) => setFAirline(e.target.value)} placeholder="GOL, LATAM..." className="w-full px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none transition-colors" /></div>
-                  <div><label className="block text-xs font-bold text-gray-400 uppercase">Nº Voo</label><input type="text" value={fNumber} onChange={(e) => setFNumber(e.target.value)} placeholder="G3 1234" className="w-full px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none transition-colors" /></div>
+            <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="relative bg-white dark:bg-gray-900 w-full max-w-lg rounded-3xl shadow-2xl p-8 transition-colors max-h-[90vh] overflow-y-auto no-scrollbar">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-indigo-50 dark:bg-indigo-900/30 rounded-xl">
+                    <Plane className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Adicionar Voo</h2>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div><label className="block text-xs font-bold text-gray-400 uppercase">Origem</label><input type="text" value={fOrigin} onChange={(e) => setFOrigin(e.target.value)} placeholder="GRU" className="w-full px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none transition-colors" /></div>
-                  <div><label className="block text-xs font-bold text-gray-400 uppercase">Destino</label><input type="text" value={fDest} onChange={(e) => setFDest(e.target.value)} placeholder="FLN" className="w-full px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none transition-colors" /></div>
+                <button onClick={() => setIsAddFlightModalOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
+                  <X className="w-6 h-6 text-gray-400" />
+                </button>
+              </div>
+
+              <form onSubmit={handleAddFlight} className="space-y-6">
+                <div className="bg-gray-50/50 dark:bg-gray-800/30 p-4 rounded-2xl space-y-4 border border-gray-100 dark:border-gray-800">
+                  <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                    <ArrowRight className="w-4 h-4" /> Voo de Ida
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Cia Aérea</label><input type="text" value={fAirline} onChange={(e) => setFAirline(e.target.value)} placeholder="GOL, LATAM..." className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm" /></div>
+                    <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Nº Voo</label><input type="text" value={fNumber} onChange={(e) => setFNumber(e.target.value)} placeholder="G3 1234" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm" /></div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Origem</label><input type="text" value={fOrigin} onChange={(e) => setFOrigin(e.target.value)} placeholder="GRU" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm font-bold" /></div>
+                    <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Destino</label><input type="text" value={fDest} onChange={(e) => setFDest(e.target.value)} placeholder="FLN" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm font-bold" /></div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Partida</label><input type="datetime-local" value={fDepTime} onChange={(e) => setFDepTime(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-xs" /></div>
+                    <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Chegada</label><input type="datetime-local" value={fArrTime} onChange={(e) => setFArrTime(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-xs" /></div>
+                  </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div><label className="block text-xs font-bold text-gray-400 uppercase">Partida</label><input type="datetime-local" value={fDepTime} onChange={(e) => setFDepTime(e.target.value)} className="w-full px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none transition-colors" /></div>
-                  <div><label className="block text-xs font-bold text-gray-400 uppercase">Chegada</label><input type="datetime-local" value={fArrTime} onChange={(e) => setFArrTime(e.target.value)} className="w-full px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none transition-colors" /></div>
+
+                <div className="flex items-center justify-between p-4 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-2xl border border-indigo-100/50 dark:border-indigo-900/20">
+                  <div className="flex items-center gap-3">
+                    <div className={cn("p-2 rounded-lg transition-colors", isRoundTrip ? "bg-indigo-600 text-white" : "bg-gray-200 dark:bg-gray-800 text-gray-400")}>
+                      <ArrowLeftRight className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-gray-900 dark:text-white">Voo de volta</p>
+                      <p className="text-[10px] text-gray-500">Cadastrar retorno simultaneamente</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsRoundTrip(!isRoundTrip)}
+                    className={cn(
+                      "w-12 h-6 rounded-full relative transition-colors",
+                      isRoundTrip ? "bg-indigo-600" : "bg-gray-300 dark:bg-gray-700"
+                    )}
+                  >
+                    <motion.div
+                      animate={{ x: isRoundTrip ? 26 : 2 }}
+                      className="absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm"
+                    />
+                  </button>
                 </div>
-                <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg transition-all mt-4">Salvar Voo</button>
+
+                <AnimatePresence>
+                  {isRoundTrip && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="bg-gray-50/50 dark:bg-gray-800/30 p-4 rounded-2xl space-y-4 border border-gray-100 dark:border-gray-800 overflow-hidden"
+                    >
+                      <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                        <ArrowRight className="w-4 h-4 rotate-180" /> Voo de Volta
+                      </h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Cia Aérea</label><input type="text" value={rAirline} onChange={(e) => setRAirline(e.target.value)} placeholder="GOL, LATAM..." className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm" /></div>
+                        <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Nº Voo</label><input type="text" value={rNumber} onChange={(e) => setRNumber(e.target.value)} placeholder="G3 5678" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm" /></div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 opacity-70">
+                        <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Origem</label><input type="text" value={fDest} readOnly className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-900 text-gray-500 outline-none text-sm font-bold cursor-not-allowed" /></div>
+                        <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Destino</label><input type="text" value={fOrigin} readOnly className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-900 text-gray-500 outline-none text-sm font-bold cursor-not-allowed" /></div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Partida (Retorno)</label><input type="datetime-local" value={rDepTime} onChange={(e) => setRDepTime(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-xs" /></div>
+                        <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Chegada (Retorno)</label><input type="datetime-local" value={rArrTime} onChange={(e) => setRArrTime(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-xs" /></div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-2xl shadow-lg shadow-indigo-100 dark:shadow-none transition-all mt-4 flex items-center justify-center gap-2">
+                  <Plane className="w-5 h-5" /> Salvar {isRoundTrip ? "Voos" : "Voo"}
+                </button>
               </form>
             </motion.div>
           </div>
@@ -469,15 +810,91 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsAddStayModalOpen(false)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
             <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="relative bg-white dark:bg-gray-900 w-full max-w-md rounded-3xl shadow-2xl p-8 transition-colors">
-              <div className="flex items-center justify-between mb-6"><h2 className="text-2xl font-bold text-gray-900 dark:text-white">Adicionar Hospedagem</h2><button onClick={() => setIsAddStayModalOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"><X className="w-6 h-6 text-gray-400" /></button></div>
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-amber-50 dark:bg-amber-900/30 rounded-xl">
+                    <Hotel className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Adicionar Estadia</h2>
+                </div>
+                <button onClick={() => setIsAddStayModalOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
+                  <X className="w-6 h-6 text-gray-400" />
+                </button>
+              </div>
               <form onSubmit={handleAddStay} className="space-y-4">
-                <div><label className="block text-xs font-bold text-gray-400 uppercase">Nome do Hotel/Airbnb</label><input type="text" value={sName} onChange={(e) => setSName(e.target.value)} placeholder="Hotel Paradiso" className="w-full px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none transition-colors" required /></div>
-                <div><label className="block text-xs font-bold text-gray-400 uppercase">Endereço</label><input type="text" value={sAddress} onChange={(e) => setSAddress(e.target.value)} placeholder="Rua das Flores, 123" className="w-full px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none transition-colors" /></div>
+                <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Nome do Hotel/Airbnb</label><input type="text" value={sName} onChange={(e) => setSName(e.target.value)} placeholder="Hotel Paradiso" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all" required /></div>
+                <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Endereço</label><input type="text" value={sAddress} onChange={(e) => setSAddress(e.target.value)} placeholder="Rua das Flores, 123" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all" /></div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div><label className="block text-xs font-bold text-gray-400 uppercase">Check-in</label><input type="date" value={sCheckIn} onChange={(e) => setSCheckIn(e.target.value)} className="w-full px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none transition-colors" /></div>
-                  <div><label className="block text-xs font-bold text-gray-400 uppercase">Check-out</label><input type="date" value={sCheckOut} onChange={(e) => setSCheckOut(e.target.value)} className="w-full px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none transition-colors" /></div>
+                  <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Check-in</label><input type="date" value={sCheckIn} onChange={(e) => setSCheckIn(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none transition-all" /></div>
+                  <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Check-out</label><input type="date" value={sCheckOut} onChange={(e) => setSCheckOut(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none transition-all" /></div>
                 </div>
                 <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg transition-all mt-4">Salvar Hospedagem</button>
+              </form>
+            </motion.div>
+          </div>
+        )}
+
+        {isAddRentalModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsAddRentalModalOpen(false)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="relative bg-white dark:bg-gray-900 w-full max-w-md rounded-3xl shadow-2xl p-8 transition-colors">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-blue-50 dark:bg-blue-900/30 rounded-xl">
+                    <Car className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Aluguel de Carro</h2>
+                </div>
+                <button onClick={() => setIsAddRentalModalOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
+                  <X className="w-6 h-6 text-gray-400" />
+                </button>
+              </div>
+              <form onSubmit={handleAddRental} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Locadora</label><input type="text" value={crCompany} onChange={(e) => setCrCompany(e.target.value)} placeholder="Hertz, Avis..." className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm" required /></div>
+                  <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Modelo</label><input type="text" value={crModel} onChange={(e) => setCrModel(e.target.value)} placeholder="SUV, Sedã..." className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm" /></div>
+                </div>
+                <div className="space-y-4 p-4 bg-gray-50/50 dark:bg-gray-800/30 rounded-2xl border border-gray-100 dark:border-gray-800">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Local Retirada</label><input type="text" value={crPickupLoc} onChange={(e) => setCrPickupLoc(e.target.value)} placeholder="Aeroporto" className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none text-xs" /></div>
+                    <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Data/Hora</label><input type="datetime-local" value={crPickupTime} onChange={(e) => setCrPickupTime(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none text-[10px]" /></div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 border-t border-gray-100 dark:border-gray-800 pt-4">
+                    <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Local Devolução</label><input type="text" value={crDropoffLoc} onChange={(e) => setCrDropoffLoc(e.target.value)} placeholder="Centro" className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none text-xs" /></div>
+                    <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Data/Hora</label><input type="datetime-local" value={crDropoffTime} onChange={(e) => setCrDropoffTime(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none text-[10px]" /></div>
+                  </div>
+                </div>
+                <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Cód. Confirmação</label><input type="text" value={crCode} onChange={(e) => setCrCode(e.target.value)} placeholder="ABC123DEF" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm uppercase font-mono" /></div>
+                <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg transition-all mt-4">Salvar Aluguel</button>
+              </form>
+            </motion.div>
+          </div>
+        )}
+
+        {isAddInsuranceModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsAddInsuranceModalOpen(false)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="relative bg-white dark:bg-gray-900 w-full max-w-md rounded-3xl shadow-2xl p-8 transition-colors">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-emerald-50 dark:bg-emerald-900/30 rounded-xl">
+                    <ShieldCheck className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Seguro Viagem</h2>
+                </div>
+                <button onClick={() => setIsAddInsuranceModalOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
+                  <X className="w-6 h-6 text-gray-400" />
+                </button>
+              </div>
+              <form onSubmit={handleAddInsurance} className="space-y-4">
+                <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Seguradora / Provedor</label><input type="text" value={insProvider} onChange={(e) => setInsProvider(e.target.value)} placeholder="Assist Card, Allianz..." className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm" required /></div>
+                <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Número da Apólice</label><input type="text" value={insPolicy} onChange={(e) => setInsPolicy(e.target.value)} placeholder="123456789" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm" /></div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Início Cobertura</label><input type="date" value={insStart} onChange={(e) => setInsStart(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none text-xs" /></div>
+                  <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Fim Cobertura</label><input type="date" value={insEnd} onChange={(e) => setInsEnd(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none text-xs" /></div>
+                </div>
+                <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Contato de Emergência</label><input type="text" value={insContact} onChange={(e) => setInsContact(e.target.value)} placeholder="+55 (11) 0800..." className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm" /></div>
+                <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg transition-all mt-4">Salvar Seguro</button>
               </form>
             </motion.div>
           </div>

@@ -1040,7 +1040,7 @@ function GroupDetailView({ group, onBack, onLeave, user }: { group: Group, onBac
           </div>
         </div>
 
-        <div className="flex bg-white dark:bg-gray-900 p-1 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm transition-colors overflow-x-auto no-scrollbar scroll-smooth">
+        <div className="flex bg-white dark:bg-gray-900 p-1 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm transition-colors overflow-x-auto no-scrollbar scroll-smooth w-fit mx-auto md:mx-0 justify-center">
           <button
             onClick={() => setActiveSubTab("destinations")}
             className={cn(

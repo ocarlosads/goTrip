@@ -356,7 +356,7 @@ async function startServer() {
   app.get("/api/groups/:groupId/data", authenticate, async (req: any, res) => {
     const { groupId } = req.params;
     try {
-      const [destinations, itinerary, flights, stays, expenses, group] = await Promise.all([
+      const [destinations, itinerary, flights, stays, expenses, group, carRentals, insurances] = await Promise.all([
         prisma.destination.findMany({ where: { groupId }, include: { votes: true } }),
         prisma.itineraryItem.findMany({ where: { groupId }, orderBy: [{ date: "asc" }, { time: "asc" }] }),
         prisma.flight.findMany({ where: { groupId }, orderBy: { departureTime: "asc" } }),
@@ -375,7 +375,9 @@ async function startServer() {
               }
             }
           }
-        })
+        }),
+        prisma.carRental.findMany({ where: { groupId }, orderBy: { pickupTime: "asc" } }),
+        prisma.insurance.findMany({ where: { groupId }, orderBy: { startDate: "asc" } }),
       ]);
 
       const user = await prisma.user.findUnique({ where: { email: req.user.email } });
@@ -416,6 +418,8 @@ async function startServer() {
         itinerary,
         flights,
         stays,
+        carRentals,
+        insurances,
         expenses: formattedExpenses,
         members: formattedMembers
       });
@@ -582,20 +586,42 @@ async function startServer() {
 
   app.post("/api/groups/:groupId/flights", authenticate, async (req: any, res) => {
     const { groupId } = req.params;
-    const { number, airline, departureTime, arrivalTime, origin, destination } = req.body;
+    const { number, airline, departureTime, arrivalTime, origin, destination, isRoundTrip, returnFlight } = req.body;
     try {
-      const flight = await prisma.flight.create({
-        data: {
-          groupId, number, airline,
-          departureTime: departureTime ? new Date(departureTime) : null,
-          arrivalTime: arrivalTime ? new Date(arrivalTime) : null,
-          origin, destination,
-        },
+      const flightsToCreate = [];
+
+      // Voo de ida
+      flightsToCreate.push({
+        groupId,
+        number,
+        airline,
+        departureTime: departureTime ? new Date(departureTime) : null,
+        arrivalTime: arrivalTime ? new Date(arrivalTime) : null,
+        origin,
+        destination,
       });
-      res.json(flight);
+
+      // Voo de volta opcional
+      if (isRoundTrip && returnFlight) {
+        flightsToCreate.push({
+          groupId,
+          number: returnFlight.number,
+          airline: returnFlight.airline,
+          departureTime: returnFlight.departureTime ? new Date(returnFlight.departureTime) : null,
+          arrivalTime: returnFlight.arrivalTime ? new Date(returnFlight.arrivalTime) : null,
+          origin: returnFlight.origin,
+          destination: returnFlight.destination,
+        });
+      }
+
+      const createdFlights = await Promise.all(
+        flightsToCreate.map(f => prisma.flight.create({ data: f }))
+      );
+
+      res.json(createdFlights);
     } catch (err) {
-      console.error("Error creating flight:", err);
-      res.status(500).json({ error: "Failed to create flight" });
+      console.error("Error creating flight(s):", err);
+      res.status(500).json({ error: "Failed to create flight(s)" });
     }
   });
 
@@ -640,6 +666,64 @@ async function startServer() {
       await prisma.stay.delete({ where: { id: stayId } });
       res.json({ success: true });
     } catch { res.status(500).json({ error: "Failed to delete stay" }); }
+  });
+
+  // ─── Car Rental Endpoints ──────────────────────────────────────────────────
+  app.post("/api/groups/:groupId/rentals", authenticate, async (req: any, res) => {
+    const { groupId } = req.params;
+    const { company, model, pickupLocation, pickupTime, dropoffLocation, dropoffTime, confirmationCode } = req.body;
+    try {
+      const rental = await prisma.carRental.create({
+        data: {
+          groupId, company, model, pickupLocation, dropoffLocation, confirmationCode,
+          pickupTime: pickupTime ? new Date(pickupTime) : null,
+          dropoffTime: dropoffTime ? new Date(dropoffTime) : null,
+        },
+      });
+      res.json(rental);
+    } catch (err) {
+      console.error("Error creating car rental:", err);
+      res.status(500).json({ error: "Failed to create car rental" });
+    }
+  });
+
+  app.delete("/api/rentals/:id", authenticate, async (req: any, res) => {
+    const { id } = req.params;
+    try {
+      await prisma.carRental.delete({ where: { id } });
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: "Erro ao deletar aluguel" });
+    }
+  });
+
+  // ─── Insurance Endpoints ────────────────────────────────────────────────────
+  app.post("/api/groups/:groupId/insurances", authenticate, async (req: any, res) => {
+    const { groupId } = req.params;
+    const { provider, policyNumber, startDate, endDate, contactInfo } = req.body;
+    try {
+      const insurance = await prisma.insurance.create({
+        data: {
+          groupId, provider, policyNumber, contactInfo,
+          startDate: startDate ? new Date(startDate) : null,
+          endDate: endDate ? new Date(endDate) : null,
+        },
+      });
+      res.json(insurance);
+    } catch (err) {
+      console.error("Error creating insurance:", err);
+      res.status(500).json({ error: "Failed to create insurance" });
+    }
+  });
+
+  app.delete("/api/insurances/:id", authenticate, async (req: any, res) => {
+    const { id } = req.params;
+    try {
+      await prisma.insurance.delete({ where: { id } });
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: "Erro ao deletar seguro" });
+    }
   });
 
   // ─── Expense Endpoints ─────────────────────────────────────────────────────

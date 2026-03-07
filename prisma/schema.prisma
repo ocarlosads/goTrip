@@ -47,6 +47,8 @@ model Group {
   expenses     Expense[]
   flights      Flight[]
   stays        Stay[]
+  carRentals   CarRental[]
+  insurances   Insurance[]
 }
 
 model Membership {
@@ -160,4 +162,32 @@ model PendingUser {
   password          String   // Hashed password
   verificationToken String
   createdAt         DateTime @default(now())
+}
+
+model CarRental {
+  id              String    @id @default(cuid())
+  groupId         String
+  company         String
+  model           String?
+  pickupLocation  String?
+  pickupTime      DateTime?
+  dropoffLocation String?
+  dropoffTime     DateTime?
+  confirmationCode String?
+  createdAt       DateTime  @default(now())
+
+  group           Group     @relation(fields: [groupId], references: [id])
+}
+
+model Insurance {
+  id              String    @id @default(cuid())
+  groupId         String
+  provider        String
+  policyNumber    String?
+  startDate       DateTime?
+  endDate         DateTime?
+  contactInfo     String?
+  createdAt       DateTime  @default(now())
+
+  group           Group     @relation(fields: [groupId], references: [id])
 }
