@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Calendar, Clock, MapPin, Plus, Trash2, X, Plane, Hotel, Navigation, Loader2, Car, Shield, ShieldCheck, ArrowRight, ArrowLeftRight, CreditCard, Info, Pencil, Search } from "lucide-react";
+import { Calendar, Clock, MapPin, Plus, Trash2, X, Plane, Hotel, Navigation, Loader2, Car, Shield, ShieldCheck, ArrowRight, ArrowLeftRight, CreditCard, Info, Pencil, Search, Users, UserPlus } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { apiFetch } from "../../lib/api";
 import { useToast } from "../../context/ToastContext";
@@ -58,6 +58,7 @@ interface Stay {
   googlePlaceId: string | null;
   checkIn: string | null;
   checkOut: string | null;
+  bookingVoucherUrl: string | null;
   members: StayMember[];
 }
 
@@ -65,7 +66,6 @@ interface StayMember {
   id: string;
   stayId: string;
   userId: string;
-  bookingVoucherUrl: string | null;
   createdAt: string;
   user?: {
     id: string;
@@ -83,6 +83,20 @@ interface CarRental {
   dropoffLocation: string | null;
   dropoffTime: string | null;
   confirmationCode: string | null;
+  members: CarRentalMember[];
+}
+
+interface CarRentalMember {
+  id: string;
+  carRentalId: string;
+  userId: string;
+  bookingVoucherUrl: string | null;
+  createdAt: string;
+  user?: {
+    id: string;
+    name: string | null;
+    email: string;
+  };
 }
 
 interface Insurance {
@@ -136,6 +150,10 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
   const [isShareStayModalOpen, setIsShareStayModalOpen] = useState(false);
   const [sharingStayId, setSharingStayId] = useState<string | null>(null);
   const [sharingStayVoucher, setSharingStayVoucher] = useState<string>("");
+  const [isShareRentalModalOpen, setIsShareRentalModalOpen] = useState(false);
+  const [sharingRentalId, setSharingRentalId] = useState<string | null>(null);
+  const [sharingRentalVoucher, setSharingRentalVoucher] = useState<string>("");
+  const [sharingUserId, setSharingUserId] = useState<string>("");
 
   // Day form
   const [newDayDate, setNewDayDate] = useState("");
@@ -201,6 +219,8 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
   const [crDropoffLoc, setCrDropoffLoc] = useState("");
   const [crDropoffTime, setCrDropoffTime] = useState("");
   const [crCode, setCrCode] = useState("");
+  const [crVoucherUrl, setCrVoucherUrl] = useState("");
+  const [crIsUploading, setCrIsUploading] = useState(false);
 
   // Insurance form
   const [insProvider, setInsProvider] = useState("");
@@ -322,12 +342,11 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
       const res = await apiFetch(`/api/stays/${sharingStayId}/share`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, bookingVoucherUrl: sharingStayVoucher }),
+        body: JSON.stringify({ userId }),
       });
       if (res.ok) {
         await fetchAll();
         setIsShareStayModalOpen(false);
-        setSharingStayVoucher("");
       }
     } catch (err) { console.error(err); }
   };
@@ -411,19 +430,11 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
           address: sAddress,
           checkIn: sCheckIn || null,
           checkOut: sCheckOut || null,
+          bookingVoucherUrl: sVoucherUrl
         }),
       });
       if (res.ok) {
-        const createdStay = await res.json();
 
-        // Link user to stay with voucher if present
-        if (sVoucherUrl && !editingStayId) {
-          await apiFetch(`/api/stays/${createdStay.id}/share`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ userId: currentUserId, bookingVoucherUrl: sVoucherUrl }),
-          });
-        }
 
         await fetchAll();
         setIsAddStayModalOpen(false);
@@ -443,6 +454,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
 
   const handleAddRental = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!crCompany) return;
     try {
       const res = await apiFetch(editingRentalId ? `/api/rentals/${editingRentalId}` : `/api/groups/${groupId}/rentals`, {
         method: editingRentalId ? "PATCH" : "POST",
@@ -450,15 +462,39 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
         body: JSON.stringify({ company: crCompany, model: crModel, pickupLocation: crPickupLoc, pickupTime: crPickupTime, dropoffLocation: crDropoffLoc, dropoffTime: crDropoffTime, confirmationCode: crCode }),
       });
       if (res.ok) {
-        const rental = await res.json();
-        if (editingRentalId) {
-          setCarRentals((prev) => prev.map(r => r.id === editingRentalId ? rental : r));
-        } else {
-          setCarRentals((prev) => [...prev, rental]);
+        const createdRental = await res.json();
+
+        // Link user if voucher is present and it's a new rental
+        if (crVoucherUrl && !editingRentalId) {
+          await apiFetch(`/api/rentals/${createdRental.id}/share`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId: currentUserId, bookingVoucherUrl: crVoucherUrl }),
+          });
         }
+
+        await fetchAll();
         setIsAddRentalModalOpen(false);
         setEditingRentalId(null);
         setCrCompany(""); setCrModel(""); setCrPickupLoc(""); setCrPickupTime(""); setCrDropoffLoc(""); setCrDropoffTime(""); setCrCode("");
+        setCrVoucherUrl("");
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const handleShareRental = async (userId: string) => {
+    if (!sharingRentalId) return;
+    try {
+      const res = await apiFetch(`/api/rentals/${sharingRentalId}/share`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, bookingVoucherUrl: sharingRentalVoucher }),
+      });
+      if (res.ok) {
+        await fetchAll();
+        setIsShareRentalModalOpen(false);
+        setSharingRentalId(null);
+        setSharingRentalVoucher("");
       }
     } catch (err) { console.error(err); }
   };
@@ -906,8 +942,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                         <div className="flex-1">
                           <h4 className="font-bold text-gray-900 dark:text-white">{stay.name}</h4>
                           {stay.address && (
-                            <div className="flex flex-col gap-1 mt-1">
-                              <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1"><MapPin className="w-3 h-3" /> {stay.address}</p>
+                            <div className="mt-1 flex flex-wrap items-center gap-3">
                               <a
                                 href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(stay.address)}`}
                                 target="_blank"
@@ -916,6 +951,38 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                               >
                                 <Navigation className="w-2.5 h-2.5" /> Ver no Maps
                               </a>
+
+                              {stay.bookingVoucherUrl ? (
+                                <button
+                                  onClick={() => { setViewingBoardingPassUrl(stay.bookingVoucherUrl || ""); setIsBoardingPassModalOpen(true); }}
+                                  className="text-[10px] text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 font-bold"
+                                >
+                                  <ShieldCheck className="w-2.5 h-2.5" /> Ver Comprovante
+                                </button>
+                              ) : (
+                                <label className="text-[10px] text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1 cursor-pointer hover:underline">
+                                  <Plus className="w-3 h-3" /> Anexar Comprovante
+                                  <input
+                                    type="file"
+                                    className="hidden"
+                                    accept=".pdf,image/*"
+                                    onChange={async (e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) {
+                                        try {
+                                          const url = await handleFileUpload(file);
+                                          await apiFetch(`/api/stays/${stay.id}`, {
+                                            method: "PATCH",
+                                            headers: { "Content-Type": "application/json" },
+                                            body: JSON.stringify({ bookingVoucherUrl: url }),
+                                          });
+                                          await fetchAll();
+                                        } catch (err) { console.error(err); }
+                                      }
+                                    }}
+                                  />
+                                </label>
+                              )}
                             </div>
                           )}
                         </div>
@@ -948,48 +1015,9 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                               <div className="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase border border-indigo-200 dark:border-indigo-800">
                                 {m.user?.name?.[0] || m.user?.email?.[0] || "?"}
                               </div>
-                              <div className="flex flex-col">
-                                <p className="text-[10px] font-bold text-gray-900 dark:text-white truncate max-w-[80px]">
-                                  {m.user?.id === currentUserId ? "Você" : (m.user?.name || m.user?.email.split('@')[0])}
-                                </p>
-                                <div className="flex items-center gap-2">
-                                  {m.bookingVoucherUrl ? (
-                                    <button
-                                      onClick={() => { setViewingBoardingPassUrl(m.bookingVoucherUrl || ""); setIsBoardingPassModalOpen(true); }}
-                                      className="text-[9px] text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-0.5 font-medium"
-                                    >
-                                      <ShieldCheck className="w-2.5 h-2.5" /> Comprovante
-                                    </button>
-                                  ) : m.user?.id === currentUserId ? (
-                                    <div className="flex items-center gap-1 relative">
-                                      <label className="text-[9px] text-amber-600 dark:text-amber-400 font-bold flex items-center gap-0.5 cursor-pointer hover:underline">
-                                        <Plus className="w-2 h-2" /> Voucher
-                                        <input
-                                          type="file"
-                                          className="hidden"
-                                          accept=".pdf,image/*"
-                                          onChange={async (e) => {
-                                            const file = e.target.files?.[0];
-                                            if (file) {
-                                              try {
-                                                const url = await handleFileUpload(file);
-                                                await apiFetch(`/api/stays/members/${m.id}`, {
-                                                  method: "PATCH",
-                                                  headers: { "Content-Type": "application/json" },
-                                                  body: JSON.stringify({ bookingVoucherUrl: url }),
-                                                });
-                                                await fetchAll();
-                                              } catch (err) { console.error(err); }
-                                            }
-                                          }}
-                                        />
-                                      </label>
-                                    </div>
-                                  ) : (
-                                    <span className="text-[9px] text-gray-400 italic">Sem voucher</span>
-                                  )}
-                                </div>
-                              </div>
+                              <span className="text-[10px] font-bold text-gray-700 dark:text-gray-200">
+                                {m.user?.id === currentUserId ? "Você" : (m.user?.name || m.user?.email.split('@')[0])}
+                              </span>
                             </div>
                           ))}
                           {(stay.members || []).length === 0 && (
@@ -1062,6 +1090,72 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Devolução</p>
                           <p className="text-sm font-bold text-gray-900 dark:text-white leading-tight">{rental.dropoffTime ? new Date(rental.dropoffTime).toLocaleDateString("pt-BR") : "—"}</p>
                           <p className="text-[10px] text-gray-500 truncate">{rental.dropoffLocation}</p>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 pt-4 border-t border-gray-50 dark:border-gray-800">
+                        <div className="flex items-center justify-between mb-3">
+                          <h5 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                            <Users className="w-3 h-3" /> Condutores / Membros
+                          </h5>
+                          <button
+                            onClick={() => { setSharingRentalId(rental.id); setIsShareRentalModalOpen(true); }}
+                            className="p-1.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-indigo-100 transition-colors"
+                          >
+                            <UserPlus className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        <div className="space-y-2">
+                          {(rental.members || []).map((m) => (
+                            <div key={m.id} className="flex items-center justify-between p-2 rounded-xl bg-gray-50/50 dark:bg-gray-800/30 border border-transparent hover:border-gray-100 dark:hover:border-gray-700 transition-all">
+                              <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-[10px] font-bold text-indigo-600 dark:text-indigo-400">
+                                  {m.user?.name?.[0] || m.user?.email?.[0]?.toUpperCase()}
+                                </div>
+                                <div className="flex flex-col">
+                                  <span className="text-[11px] font-bold text-gray-700 dark:text-gray-200">{m.user?.name || m.user?.email}</span>
+                                  {m.bookingVoucherUrl ? (
+                                    <button
+                                      onClick={() => { setViewingBoardingPassUrl(m.bookingVoucherUrl || ""); setIsBoardingPassModalOpen(true); }}
+                                      className="text-[9px] text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-0.5 font-medium"
+                                    >
+                                      <ShieldCheck className="w-2.5 h-2.5" /> Comprovante
+                                    </button>
+                                  ) : m.user?.id === currentUserId ? (
+                                    <div className="flex items-center gap-1 relative">
+                                      <label className="text-[9px] text-amber-600 dark:text-amber-400 font-bold flex items-center gap-0.5 cursor-pointer hover:underline">
+                                        <Plus className="w-2 h-2" /> Voucher
+                                        <input
+                                          type="file"
+                                          className="hidden"
+                                          accept=".pdf,image/*"
+                                          onChange={async (e) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) {
+                                              try {
+                                                const url = await handleFileUpload(file);
+                                                await apiFetch(`/api/rentals/members/${m.id}`, {
+                                                  method: "PATCH",
+                                                  headers: { "Content-Type": "application/json" },
+                                                  body: JSON.stringify({ bookingVoucherUrl: url }),
+                                                });
+                                                await fetchAll();
+                                              } catch (err) { console.error(err); }
+                                            }
+                                          }}
+                                        />
+                                      </label>
+                                    </div>
+                                  ) : (
+                                    <span className="text-[9px] text-gray-400 italic">Sem voucher</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                          {(rental.members || []).length === 0 && (
+                            <p className="text-[10px] text-gray-400 italic py-1">Nenhum membro vinculado.</p>
+                          )}
                         </div>
                       </div>
                     </motion.div>
@@ -1377,7 +1471,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                       ) : (
                         <>
                           <Plus className="w-6 h-6 text-gray-400 mb-1" />
-                          <p className="text-[10px] text-gray-500 font-bold uppercase">Adicionar Voucher</p>
+                          <p className="text-[10px] text-gray-500 font-bold uppercase">Anexar Comprovante</p>
                         </>
                       )}
                     </div>
@@ -1688,6 +1782,59 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                       </button>
                     );
                   })}
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {isShareRentalModalOpen && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsShareRentalModalOpen(false)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="relative bg-white dark:bg-gray-900 w-full max-w-md rounded-3xl shadow-2xl p-6 transition-colors">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                  <UserPlus className="w-5 h-5 text-indigo-600" /> Vincular Condutor
+                </h3>
+                <button onClick={() => setIsShareRentalModalOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors text-gray-400">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <p className="text-sm text-gray-500 text-left">Selecione um membro do grupo para vincular a este aluguel de carro e, opcionalmente, anexe o comprovante dele.</p>
+                <div className="space-y-4 text-left">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Membro do Grupo</label>
+                    <select className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium text-sm" onChange={(e) => setSharingUserId(e.target.value)} value={sharingUserId}>
+                      <option value="">Selecionar membro...</option>
+                      {members.map(m => (
+                        <option key={m.user.id} value={m.user.id}>{m.user.name || m.user.email}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Comprovante de Reserva (Opcional)</label>
+                    <label className="flex-1 block">
+                      <div className={cn("flex items-center justify-center gap-2 p-3 rounded-xl border-2 border-dashed transition-all cursor-pointer", sharingRentalVoucher ? "border-emerald-200 bg-emerald-50 dark:border-emerald-900/30" : "border-gray-200 hover:border-indigo-300 dark:border-gray-800")}>
+                        {crIsUploading ? <Loader2 className="w-5 h-5 animate-spin text-indigo-600" /> : sharingRentalVoucher ? <ShieldCheck className="w-5 h-5 text-emerald-600" /> : <Plus className="w-5 h-5 text-gray-400" />}
+                        <span className="text-sm font-bold text-gray-600 dark:text-gray-400">{crIsUploading ? "Enviando..." : sharingRentalVoucher ? "Documento Pronto" : "Anexar Documento"}</span>
+                      </div>
+                      <input type="file" className="hidden" accept=".pdf,image/*" onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setCrIsUploading(true);
+                          try { const url = await handleFileUpload(file); setSharingRentalVoucher(url); } catch (err) { console.error(err); }
+                          setCrIsUploading(false);
+                        }
+                      }} />
+                    </label>
+                  </div>
+                  <button onClick={() => handleShareRental(sharingUserId)} disabled={!sharingUserId || crIsUploading} className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white font-bold py-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2">
+                    {crIsUploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <UserPlus className="w-5 h-5" />}
+                    Vincular ao Carro
+                  </button>
                 </div>
               </div>
             </motion.div>

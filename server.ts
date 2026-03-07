@@ -413,7 +413,7 @@ async function startServer() {
             }
           }
         }),
-        prisma.carRental.findMany({ where: { groupId }, orderBy: { pickupTime: "asc" } }),
+        prisma.carRental.findMany({ where: { groupId }, include: { members: { include: { user: true } } }, orderBy: { pickupTime: "asc" } }),
         prisma.insurance.findMany({ where: { groupId }, orderBy: { startDate: "asc" } }),
       ]);
 
@@ -782,15 +782,14 @@ async function startServer() {
 
   app.post("/api/groups/:groupId/stays", authenticate, async (req: any, res) => {
     const { groupId } = req.params;
-    const { name, address, lat, lng, googlePlaceId, checkIn, checkOut } = req.body;
+    const { name, address, lat, lng, googlePlaceId, checkIn, checkOut, bookingVoucherUrl } = req.body;
     try {
       const stay = await prisma.stay.create({
         data: {
-          groupId, name, address, lat, lng, googlePlaceId,
+          groupId, name, address, bookingVoucherUrl,
           checkIn: checkIn ? new Date(checkIn) : null,
           checkOut: checkOut ? new Date(checkOut) : null,
         },
-        include: { members: { include: { user: true } } }
       });
       res.json(stay);
     } catch (err) {
@@ -801,16 +800,15 @@ async function startServer() {
 
   app.patch("/api/stays/:stayId", authenticate, async (req, res) => {
     const { stayId } = req.params;
-    const { name, address, lat, lng, googlePlaceId, checkIn, checkOut } = req.body;
+    const { name, address, lat, lng, googlePlaceId, checkIn, checkOut, bookingVoucherUrl } = req.body;
     try {
       const stay = await prisma.stay.update({
         where: { id: stayId },
         data: {
-          name, address, lat, lng, googlePlaceId,
+          name, address, bookingVoucherUrl,
           checkIn: checkIn ? new Date(checkIn) : null,
           checkOut: checkOut ? new Date(checkOut) : null
         },
-        include: { members: { include: { user: true } } }
       });
       res.json(stay);
     } catch { res.status(500).json({ error: "Failed to update stay" }); }
@@ -818,10 +816,10 @@ async function startServer() {
 
   app.post("/api/stays/:stayId/share", authenticate, async (req: any, res) => {
     const { stayId } = req.params;
-    const { userId, bookingVoucherUrl } = req.body;
+    const { userId } = req.body;
     try {
       const member = await prisma.stayMember.create({
-        data: { stayId, userId, bookingVoucherUrl },
+        data: { stayId, userId },
         include: { user: true }
       });
       res.json(member);
@@ -831,17 +829,8 @@ async function startServer() {
     }
   });
 
-  app.patch("/api/stays/members/:id", authenticate, async (req: any, res) => {
-    const { id } = req.params;
-    const { bookingVoucherUrl } = req.body;
-    try {
-      const updated = await prisma.stayMember.update({
-        where: { id },
-        data: { bookingVoucherUrl }
-      });
-      res.json(updated);
-    } catch { res.status(500).json({ error: "Failed to update stay member" }); }
-  });
+  // Rota de update stay member removida pois voucher agora é no Stay
+
 
   app.delete("/api/stays/:stayId", authenticate, async (req, res) => {
     const { stayId } = req.params;
@@ -880,10 +869,37 @@ async function startServer() {
           company, model, pickupLocation, dropoffLocation, confirmationCode,
           pickupTime: pickupTime ? new Date(pickupTime) : null,
           dropoffTime: dropoffTime ? new Date(dropoffTime) : null
-        }
+        },
       });
       res.json(rental);
     } catch (err) { res.status(500).json({ error: "Erro ao atualizar aluguel" }); }
+  });
+
+  app.post("/api/rentals/:id/share", authenticate, async (req: any, res) => {
+    const { id: carRentalId } = req.params;
+    const { userId, bookingVoucherUrl } = req.body;
+    try {
+      const member = await prisma.carRentalMember.create({
+        data: { carRentalId, userId, bookingVoucherUrl },
+        include: { user: true }
+      });
+      res.json(member);
+    } catch (err) {
+      console.error("Error sharing car rental:", err);
+      res.status(500).json({ error: "Failed to share car rental" });
+    }
+  });
+
+  app.patch("/api/rentals/members/:id", authenticate, async (req: any, res) => {
+    const { id } = req.params;
+    const { bookingVoucherUrl } = req.body;
+    try {
+      const updated = await prisma.carRentalMember.update({
+        where: { id },
+        data: { bookingVoucherUrl }
+      });
+      res.json(updated);
+    } catch { res.status(500).json({ error: "Failed to update car rental member" }); }
   });
 
   app.delete("/api/rentals/:id", authenticate, async (req: any, res) => {

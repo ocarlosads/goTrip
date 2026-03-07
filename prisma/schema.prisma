@@ -27,6 +27,7 @@ model User {
   flights          Flight[]
   flightPass       FlightPassenger[]
   stayPass         StayMember[]
+  carRentalPass    CarRentalMember[]
   ownedGroups      Group[]           @relation("GroupOwner")
   memberships      Membership[]
   votes            Vote[]
@@ -118,28 +119,28 @@ model FlightPassenger {
 }
 
 model Stay {
-  id              String       @id @default(cuid())
-  groupId         String
-  name            String
-  address         String?
-  lat             Float?
-  lng             Float?
-  googlePlaceId   String?
-  checkIn         DateTime?
-  checkOut        DateTime?
-  createdAt       DateTime     @default(now())
-  group           Group        @relation(fields: [groupId], references: [id])
-  members         StayMember[]
+  id                String       @id @default(cuid())
+  groupId           String
+  name              String
+  address           String?
+  lat               Float?
+  lng               Float?
+  googlePlaceId     String?
+  checkIn           DateTime?
+  checkOut          DateTime?
+  bookingVoucherUrl String?
+  createdAt         DateTime     @default(now())
+  group             Group        @relation(fields: [groupId], references: [id])
+  members           StayMember[]
 }
 
 model StayMember {
-  id                 String   @id @default(cuid())
-  stayId             String
-  userId             String
-  bookingVoucherUrl  String?
-  createdAt          DateTime @default(now())
-  stay               Stay     @relation(fields: [stayId], references: [id], onDelete: Cascade)
-  user               User     @relation(fields: [userId], references: [id])
+  id        String   @id @default(cuid())
+  stayId    String
+  userId    String
+  createdAt DateTime @default(now())
+  stay      Stay     @relation(fields: [stayId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
 
   @@unique([stayId, userId])
 }
@@ -191,7 +192,7 @@ model PendingUser {
 }
 
 model CarRental {
-  id               String    @id @default(cuid())
+  id               String            @id @default(cuid())
   groupId          String
   company          String
   model            String?
@@ -200,8 +201,21 @@ model CarRental {
   dropoffLocation  String?
   dropoffTime      DateTime?
   confirmationCode String?
-  createdAt        DateTime  @default(now())
-  group            Group     @relation(fields: [groupId], references: [id])
+  createdAt        DateTime          @default(now())
+  group            Group             @relation(fields: [groupId], references: [id])
+  members          CarRentalMember[]
+}
+
+model CarRentalMember {
+  id                String    @id @default(cuid())
+  carRentalId       String
+  userId            String
+  bookingVoucherUrl String?
+  createdAt         DateTime  @default(now())
+  carRental         CarRental @relation(fields: [carRentalId], references: [id], onDelete: Cascade)
+  user              User      @relation(fields: [userId], references: [id])
+
+  @@unique([carRentalId, userId])
 }
 
 model Insurance {
