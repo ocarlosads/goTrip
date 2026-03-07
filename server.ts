@@ -849,6 +849,19 @@ async function startServer() {
 
     try {
       const file = req.file;
+
+      // Garantir que o bucket exista
+      const { data: buckets } = await supabase.storage.listBuckets();
+      const bucketExists = buckets?.some(b => b.id === "boarding-passes");
+
+      if (!bucketExists) {
+        const { error: createError } = await supabase.storage.createBucket("boarding-passes", {
+          public: true,
+          fileSizeLimit: 5242880 // 5MB
+        });
+        if (createError) console.warn("Aviso: Não foi possível criar o bucket automaticamente:", createError.message);
+      }
+
       const fileExt = path.extname(file.originalname);
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}${fileExt}`;
       const filePath = `boarding-passes/${fileName}`;
