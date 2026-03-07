@@ -145,7 +145,6 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
   const [newActivityTime, setNewActivityTime] = useState("");
   const [newActivityDesc, setNewActivityDesc] = useState("");
   const [newActivityLoc, setNewActivityLoc] = useState("");
-  const stayAutocompleteRef = useRef<HTMLInputElement>(null);
   const [newActivityType, setNewActivityType] = useState("activity");
 
   // Flight form
@@ -191,6 +190,8 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
   const [sPlaceId, setSPlaceId] = useState<string | null>(null);
   const [sCheckIn, setSCheckIn] = useState("");
   const [sCheckOut, setSCheckOut] = useState("");
+  const [sVoucherUrl, setSVoucherUrl] = useState("");
+  const [sIsUploading, setSIsUploading] = useState(false);
 
   // Car Rental form
   const [crCompany, setCrCompany] = useState("");
@@ -245,35 +246,6 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
     }
     fetchAll();
   }, [groupId, initialData]);
-
-  useEffect(() => {
-    // Load Google Maps script if not already loaded
-    if (typeof window !== "undefined" && !(window as any).google) {
-      const script = document.createElement("script");
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ""}&libraries=places`;
-      script.async = true;
-      script.defer = true;
-      document.head.appendChild(script);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (isAddStayModalOpen && stayAutocompleteRef.current && (window as any).google) {
-      const autocomplete = new (window as any).google.maps.places.Autocomplete(stayAutocompleteRef.current, {
-        fields: ["formatted_address", "geometry", "name", "place_id"],
-      });
-      autocomplete.addListener("place_changed", () => {
-        const place = autocomplete.getPlace();
-        if (place.name) setSName(place.name);
-        if (place.formatted_address) setSAddress(place.formatted_address);
-        if (place.geometry?.location) {
-          setSLat(place.geometry.location.lat());
-          setSLng(place.geometry.location.lng());
-        }
-        if (place.place_id) setSPlaceId(place.place_id);
-      });
-    }
-  }, [isAddStayModalOpen]);
 
   function groupItemsByDate(items: ItineraryItem[]): GroupedDay[] {
     const map: Record<string, GroupedDay> = {};
@@ -429,6 +401,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
 
   const handleAddStay = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!sName) return;
     try {
       const res = await apiFetch(editingStayId ? `/api/stays/${editingStayId}` : `/api/groups/${groupId}/stays`, {
         method: editingStayId ? "PATCH" : "POST",
@@ -436,23 +409,27 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
         body: JSON.stringify({
           name: sName,
           address: sAddress,
-          lat: sLat,
-          lng: sLng,
-          googlePlaceId: sPlaceId,
-          checkIn: sCheckIn,
-          checkOut: sCheckOut
+          checkIn: sCheckIn || null,
+          checkOut: sCheckOut || null,
         }),
       });
       if (res.ok) {
-        const stay = await res.json();
-        if (editingStayId) {
-          setStays((prev) => prev.map(s => s.id === editingStayId ? stay : s));
-        } else {
-          setStays((prev) => [...prev, stay]);
+        const createdStay = await res.json();
+
+        // Link user to stay with voucher if present
+        if (sVoucherUrl && !editingStayId) {
+          await apiFetch(`/api/stays/${createdStay.id}/share`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId: currentUserId, bookingVoucherUrl: sVoucherUrl }),
+          });
         }
+
+        await fetchAll();
         setIsAddStayModalOpen(false);
         setEditingStayId(null);
-        setSName(""); setSAddress(""); setSLat(null); setSLng(null); setSPlaceId(null); setSCheckIn(""); setSCheckOut("");
+        setSName(""); setSAddress(""); setSCheckIn(""); setSCheckOut(""); setSLat(null); setSLng(null); setSPlaceId(null);
+        setSVoucherUrl("");
       }
     } catch (err) { console.error(err); }
   };
@@ -931,16 +908,14 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                           {stay.address && (
                             <div className="flex flex-col gap-1 mt-1">
                               <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1"><MapPin className="w-3 h-3" /> {stay.address}</p>
-                              {stay.lat && stay.lng && (
-                                <a
-                                  href={`https://www.google.com/maps/search/?api=1&query=${stay.lat},${stay.lng}&query_place_id=${stay.googlePlaceId || ""}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 font-bold w-fit"
-                                >
-                                  <Navigation className="w-2.5 h-2.5" /> Ver no Mapa
-                                </a>
-                              )}
+                              <a
+                                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(stay.address)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 font-bold w-fit"
+                              >
+                                <Navigation className="w-2.5 h-2.5" /> Ver no Maps
+                              </a>
                             </div>
                           )}
                         </div>
@@ -1376,26 +1351,66 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                 </button>
               </div>
               <form onSubmit={handleAddStay} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-400 uppercase mb-1 flex items-center gap-1">
-                    <Search className="w-3 h-3" /> Buscar no Google Maps
-                  </label>
-                  <input
-                    ref={stayAutocompleteRef}
-                    type="text"
-                    placeholder="Pesquisar hotel, airbnb ou local..."
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
-                  />
-                </div>
-                <div className="grid grid-cols-1 gap-4 pt-2 border-t border-gray-100 dark:border-gray-800">
-                  <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Nome</label><input type="text" value={sName} onChange={(e) => setSName(e.target.value)} placeholder="Nome do local" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm" required /></div>
-                  <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Endereço</label><input type="text" value={sAddress} onChange={(e) => setSAddress(e.target.value)} placeholder="Endereço completo" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm" /></div>
+                <div className="grid grid-cols-1 gap-4">
+                  <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Nome da Hospedagem</label><input type="text" value={sName} onChange={(e) => setSName(e.target.value)} placeholder="Ex: Hotel Paradiso ou Airbnb" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium" required /></div>
+                  <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Localização / Endereço</label><input type="text" value={sAddress} onChange={(e) => setSAddress(e.target.value)} placeholder="Rua, Cidade ou link do Google Maps" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium" /></div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Check-in</label><input type="date" value={sCheckIn} onChange={(e) => setSCheckIn(e.target.value)} className="w-full px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none transition-all text-sm" /></div>
-                  <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Check-out</label><input type="date" value={sCheckOut} onChange={(e) => setSCheckOut(e.target.value)} className="w-full px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none transition-all text-sm" /></div>
+                  <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Check-in</label><input type="date" value={sCheckIn} onChange={(e) => setSCheckIn(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all" /></div>
+                  <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Check-out</label><input type="date" value={sCheckOut} onChange={(e) => setSCheckOut(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all" /></div>
                 </div>
-                <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg transition-all mt-4">Salvar Hospedagem</button>
+
+                <div className="pt-2 border-t border-gray-100 dark:border-gray-800">
+                  <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Comprovante de Reserva (Opcional)</label>
+                  <label className={cn(
+                    "flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-2xl cursor-pointer transition-all",
+                    sVoucherUrl ? "border-emerald-500 bg-emerald-50/30 dark:bg-emerald-900/10" : "border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                  )}>
+                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                      {sIsUploading ? (
+                        <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
+                      ) : sVoucherUrl ? (
+                        <>
+                          <ShieldCheck className="w-6 h-6 text-emerald-500 mb-2" />
+                          <p className="text-xs text-emerald-600 font-bold uppercase">Cadastrado</p>
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="w-6 h-6 text-gray-400 mb-1" />
+                          <p className="text-[10px] text-gray-500 font-bold uppercase">Adicionar Voucher</p>
+                        </>
+                      )}
+                    </div>
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept=".pdf,image/*"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setSIsUploading(true);
+                          try {
+                            const url = await handleFileUpload(file);
+                            setSVoucherUrl(url);
+                            showToast("Comprovante anexado!", "success");
+                          } catch (err: any) {
+                            showToast(err.message, "error");
+                          } finally {
+                            setSIsUploading(false);
+                          }
+                        }
+                      }}
+                    />
+                  </label>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={sIsUploading}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-bold py-4 rounded-xl shadow-lg transition-all mt-4"
+                >
+                  {editingStayId ? "Atualizar Hospedagem" : "Salvar Hospedagem"}
+                </button>
               </form>
             </motion.div>
           </div>
