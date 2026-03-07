@@ -641,6 +641,22 @@ async function startServer() {
     }
   });
 
+  app.patch("/api/flights/:flightId", authenticate, async (req, res) => {
+    const { flightId } = req.params;
+    const { number, airline, departureTime, arrivalTime, origin, destination, boardingPassUrl, identityDocUrl } = req.body;
+    try {
+      const flight = await prisma.flight.update({
+        where: { id: flightId },
+        data: {
+          number, airline, origin, destination, boardingPassUrl, identityDocUrl,
+          departureTime: departureTime ? new Date(departureTime) : null,
+          arrivalTime: arrivalTime ? new Date(arrivalTime) : null
+        }
+      });
+      res.json(flight);
+    } catch (err) { res.status(500).json({ error: "Failed to update flight" }); }
+  });
+
   app.delete("/api/flights/:flightId", authenticate, async (req, res) => {
     const { flightId } = req.params;
     try {
@@ -676,6 +692,22 @@ async function startServer() {
     }
   });
 
+  app.patch("/api/stays/:stayId", authenticate, async (req, res) => {
+    const { stayId } = req.params;
+    const { name, address, checkIn, checkOut } = req.body;
+    try {
+      const stay = await prisma.stay.update({
+        where: { id: stayId },
+        data: {
+          name, address,
+          checkIn: checkIn ? new Date(checkIn) : null,
+          checkOut: checkOut ? new Date(checkOut) : null
+        }
+      });
+      res.json(stay);
+    } catch { res.status(500).json({ error: "Failed to update stay" }); }
+  });
+
   app.delete("/api/stays/:stayId", authenticate, async (req, res) => {
     const { stayId } = req.params;
     try {
@@ -701,6 +733,22 @@ async function startServer() {
       console.error("Error creating car rental:", err);
       res.status(500).json({ error: "Failed to create car rental" });
     }
+  });
+
+  app.patch("/api/rentals/:id", authenticate, async (req: any, res) => {
+    const { id } = req.params;
+    const { company, model, pickupLocation, pickupTime, dropoffLocation, dropoffTime, confirmationCode } = req.body;
+    try {
+      const rental = await prisma.carRental.update({
+        where: { id },
+        data: {
+          company, model, pickupLocation, dropoffLocation, confirmationCode,
+          pickupTime: pickupTime ? new Date(pickupTime) : null,
+          dropoffTime: dropoffTime ? new Date(dropoffTime) : null
+        }
+      });
+      res.json(rental);
+    } catch (err) { res.status(500).json({ error: "Erro ao atualizar aluguel" }); }
   });
 
   app.delete("/api/rentals/:id", authenticate, async (req: any, res) => {
@@ -730,6 +778,22 @@ async function startServer() {
       console.error("Error creating insurance:", err);
       res.status(500).json({ error: "Failed to create insurance" });
     }
+  });
+
+  app.patch("/api/insurances/:id", authenticate, async (req: any, res) => {
+    const { id } = req.params;
+    const { provider, policyNumber, startDate, endDate, contactInfo } = req.body;
+    try {
+      const insurance = await prisma.insurance.update({
+        where: { id },
+        data: {
+          provider, policyNumber, contactInfo,
+          startDate: startDate ? new Date(startDate) : null,
+          endDate: endDate ? new Date(endDate) : null
+        }
+      });
+      res.json(insurance);
+    } catch (err) { res.status(500).json({ error: "Erro ao atualizar seguro" }); }
   });
 
   app.delete("/api/insurances/:id", authenticate, async (req: any, res) => {

@@ -132,7 +132,7 @@ function AppContent({
   const { showToast } = useToast();
 
   return (
-    <div className="min-h-screen bg-[#F9FAFB] dark:bg-gray-950 flex flex-col md:flex-row transition-colors duration-300">
+    <div className="min-h-screen bg-[#F9FAFB] dark:bg-gray-950 flex flex-col md:flex-row transition-colors duration-300 overscroll-none">
       <aside className="hidden md:flex flex-col w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 p-6 sticky top-0 h-screen transition-colors">
         <div className="flex items-center justify-between mb-10">
           <div className="flex items-center gap-3">

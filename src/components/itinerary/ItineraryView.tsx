@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Calendar, Clock, MapPin, Plus, Trash2, X, Plane, Hotel, Navigation, Loader2, Car, Shield, ShieldCheck, ArrowRight, ArrowLeftRight, CreditCard, Info } from "lucide-react";
+import { Calendar, Clock, MapPin, Plus, Trash2, X, Plane, Hotel, Navigation, Loader2, Car, Shield, ShieldCheck, ArrowRight, ArrowLeftRight, CreditCard, Info, Pencil } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { apiFetch } from "../../lib/api";
 
@@ -160,6 +160,12 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
   const [insEnd, setInsEnd] = useState("");
   const [insContact, setInsContact] = useState("");
 
+  // Edit states
+  const [editingFlightId, setEditingFlightId] = useState<string | null>(null);
+  const [editingStayId, setEditingStayId] = useState<string | null>(null);
+  const [editingRentalId, setEditingRentalId] = useState<string | null>(null);
+  const [editingInsuranceId, setEditingInsuranceId] = useState<string | null>(null);
+
   useEffect(() => {
     if (initialData) {
       setDays(groupItemsByDate(initialData.itinerary || []));
@@ -286,15 +292,21 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
         };
       }
 
-      const res = await apiFetch(`/api/groups/${groupId}/flights`, {
-        method: "POST",
+      const res = await apiFetch(editingFlightId ? `/api/flights/${editingFlightId}` : `/api/groups/${groupId}/flights`, {
+        method: editingFlightId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
       if (res.ok) {
-        const newFlights = await res.json();
-        setFlights((prev) => [...prev, ...(Array.isArray(newFlights) ? newFlights : [newFlights])]);
+        if (editingFlightId) {
+          const updated = await res.json();
+          setFlights((prev) => prev.map(f => f.id === editingFlightId ? updated : f));
+        } else {
+          const newFlights = await res.json();
+          setFlights((prev) => [...prev, ...(Array.isArray(newFlights) ? newFlights : [newFlights])]);
+        }
         setIsAddFlightModalOpen(false);
+        setEditingFlightId(null);
         setFNumber(""); setFAirline(""); setFDepTime(""); setFArrTime(""); setFOrigin(""); setFDest("");
         setIsRoundTrip(false); setRNumber(""); setRAirline(""); setRDepTime(""); setRArrTime("");
         setFBoardingPassUrl(""); setRBoardingPassUrl(""); setFIdentityDocUrl(""); setRIdentityDocUrl("");
@@ -312,15 +324,20 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
   const handleAddStay = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await apiFetch(`/api/groups/${groupId}/stays`, {
-        method: "POST",
+      const res = await apiFetch(editingStayId ? `/api/stays/${editingStayId}` : `/api/groups/${groupId}/stays`, {
+        method: editingStayId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: sName, address: sAddress, checkIn: sCheckIn, checkOut: sCheckOut }),
       });
       if (res.ok) {
         const stay = await res.json();
-        setStays((prev) => [...prev, stay]);
+        if (editingStayId) {
+          setStays((prev) => prev.map(s => s.id === editingStayId ? stay : s));
+        } else {
+          setStays((prev) => [...prev, stay]);
+        }
         setIsAddStayModalOpen(false);
+        setEditingStayId(null);
         setSName(""); setSAddress(""); setSCheckIn(""); setSCheckOut("");
       }
     } catch (err) { console.error(err); }
@@ -336,15 +353,20 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
   const handleAddRental = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await apiFetch(`/api/groups/${groupId}/rentals`, {
-        method: "POST",
+      const res = await apiFetch(editingRentalId ? `/api/rentals/${editingRentalId}` : `/api/groups/${groupId}/rentals`, {
+        method: editingRentalId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ company: crCompany, model: crModel, pickupLocation: crPickupLoc, pickupTime: crPickupTime, dropoffLocation: crDropoffLoc, dropoffTime: crDropoffTime, confirmationCode: crCode }),
       });
       if (res.ok) {
         const rental = await res.json();
-        setCarRentals((prev) => [...prev, rental]);
+        if (editingRentalId) {
+          setCarRentals((prev) => prev.map(r => r.id === editingRentalId ? rental : r));
+        } else {
+          setCarRentals((prev) => [...prev, rental]);
+        }
         setIsAddRentalModalOpen(false);
+        setEditingRentalId(null);
         setCrCompany(""); setCrModel(""); setCrPickupLoc(""); setCrPickupTime(""); setCrDropoffLoc(""); setCrDropoffTime(""); setCrCode("");
       }
     } catch (err) { console.error(err); }
@@ -360,15 +382,20 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
   const handleAddInsurance = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await apiFetch(`/api/groups/${groupId}/insurances`, {
-        method: "POST",
+      const res = await apiFetch(editingInsuranceId ? `/api/insurances/${editingInsuranceId}` : `/api/groups/${groupId}/insurances`, {
+        method: editingInsuranceId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ provider: insProvider, policyNumber: insPolicy, startDate: insStart, endDate: insEnd, contactInfo: insContact }),
       });
       if (res.ok) {
         const ins = await res.json();
-        setInsurances((prev) => [...prev, ins]);
+        if (editingInsuranceId) {
+          setInsurances((prev) => prev.map(i => i.id === editingInsuranceId ? ins : i));
+        } else {
+          setInsurances((prev) => [...prev, ins]);
+        }
         setIsAddInsuranceModalOpen(false);
+        setEditingInsuranceId(null);
         setInsProvider(""); setInsPolicy(""); setInsStart(""); setInsEnd(""); setInsContact("");
       }
     } catch (err) { console.error(err); }
@@ -523,7 +550,27 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {flights.map((flight) => (
                     <motion.div layout key={flight.id} className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm relative group transition-colors">
-                      <button onClick={() => handleDeleteFlight(flight.id)} className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 p-2 hover:bg-red-50 dark:hover:bg-red-900/30 text-red-400 rounded-xl transition-all"><Trash2 className="w-4 h-4" /></button>
+                      <div className="absolute top-4 right-4 flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all">
+                        <button
+                          onClick={() => {
+                            setEditingFlightId(flight.id);
+                            setFNumber(flight.number || "");
+                            setFAirline(flight.airline || "");
+                            setFDepTime(flight.departureTime ? new Date(flight.departureTime).toISOString().slice(0, 16) : "");
+                            setFArrTime(flight.arrivalTime ? new Date(flight.arrivalTime).toISOString().slice(0, 16) : "");
+                            setFOrigin(flight.origin || "");
+                            setFDest(flight.destination || "");
+                            setFBoardingPassUrl(flight.boardingPassUrl || "");
+                            setFIdentityDocUrl(flight.identityDocUrl || "");
+                            setIsRoundTrip(false);
+                            setIsAddFlightModalOpen(true);
+                          }}
+                          className="p-2 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl transition-all"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => handleDeleteFlight(flight.id)} className="p-2 hover:bg-red-50 dark:hover:bg-red-900/30 text-red-400 rounded-xl transition-all"><Trash2 className="w-4 h-4" /></button>
+                      </div>
                       <div className="flex items-center justify-between mb-4">
                         <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-3 py-1 rounded-lg flex items-center gap-2">
                           <Plane className="w-3 h-3" /> {flight.airline} • {flight.number}
@@ -597,7 +644,22 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {stays.map((stay) => (
                     <motion.div layout key={stay.id} className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm relative group transition-colors">
-                      <button onClick={() => handleDeleteStay(stay.id)} className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 p-2 hover:bg-red-50 dark:hover:bg-red-900/30 text-red-400 rounded-xl transition-all"><Trash2 className="w-4 h-4" /></button>
+                      <div className="absolute top-4 right-4 flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all">
+                        <button
+                          onClick={() => {
+                            setEditingStayId(stay.id);
+                            setSName(stay.name);
+                            setSAddress(stay.address || "");
+                            setSCheckIn(stay.checkIn ? new Date(stay.checkIn).toISOString().split('T')[0] : "");
+                            setSCheckOut(stay.checkOut ? new Date(stay.checkOut).toISOString().split('T')[0] : "");
+                            setIsAddStayModalOpen(true);
+                          }}
+                          className="p-2 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl transition-all"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => handleDeleteStay(stay.id)} className="p-2 hover:bg-red-50 dark:hover:bg-red-900/30 text-red-400 rounded-xl transition-all"><Trash2 className="w-4 h-4" /></button>
+                      </div>
                       <div className="flex items-start gap-4 mb-4">
                         <div className="p-3 bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 rounded-2xl">
                           <Hotel className="w-6 h-6" />
@@ -639,7 +701,25 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {carRentals.map((rental) => (
                     <motion.div layout key={rental.id} className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm relative group transition-colors">
-                      <button onClick={() => handleDeleteRental(rental.id)} className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 p-2 hover:bg-red-50 dark:hover:bg-red-900/30 text-red-400 rounded-xl transition-all"><Trash2 className="w-4 h-4" /></button>
+                      <div className="absolute top-4 right-4 flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all">
+                        <button
+                          onClick={() => {
+                            setEditingRentalId(rental.id);
+                            setCrCompany(rental.company);
+                            setCrModel(rental.model || "");
+                            setCrPickupLoc(rental.pickupLocation || "");
+                            setCrPickupTime(rental.pickupTime ? new Date(rental.pickupTime).toISOString().slice(0, 16) : "");
+                            setCrDropoffLoc(rental.dropoffLocation || "");
+                            setCrDropoffTime(rental.dropoffTime ? new Date(rental.dropoffTime).toISOString().slice(0, 16) : "");
+                            setCrCode(rental.confirmationCode || "");
+                            setIsAddRentalModalOpen(true);
+                          }}
+                          className="p-2 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl transition-all"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => handleDeleteRental(rental.id)} className="p-2 hover:bg-red-50 dark:hover:bg-red-900/30 text-red-400 rounded-xl transition-all"><Trash2 className="w-4 h-4" /></button>
+                      </div>
                       <div className="flex items-start gap-4 mb-4">
                         <div className="p-3 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-2xl">
                           <Car className="w-6 h-6" />
@@ -688,7 +768,23 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {insurances.map((ins) => (
                     <motion.div layout key={ins.id} className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm relative group transition-colors">
-                      <button onClick={() => handleDeleteInsurance(ins.id)} className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 p-2 hover:bg-red-50 dark:hover:bg-red-900/30 text-red-400 rounded-xl transition-all"><Trash2 className="w-4 h-4" /></button>
+                      <div className="absolute top-4 right-4 flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all">
+                        <button
+                          onClick={() => {
+                            setEditingInsuranceId(ins.id);
+                            setInsProvider(ins.provider);
+                            setInsPolicy(ins.policyNumber || "");
+                            setInsStart(ins.startDate ? new Date(ins.startDate).toISOString().split('T')[0] : "");
+                            setInsEnd(ins.endDate ? new Date(ins.endDate).toISOString().split('T')[0] : "");
+                            setInsContact(ins.contactInfo || "");
+                            setIsAddInsuranceModalOpen(true);
+                          }}
+                          className="p-2 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl transition-all"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => handleDeleteInsurance(ins.id)} className="p-2 hover:bg-red-50 dark:hover:bg-red-900/30 text-red-400 rounded-xl transition-all"><Trash2 className="w-4 h-4" /></button>
+                      </div>
                       <div className="flex items-start gap-4 mb-4">
                         <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-2xl">
                           <ShieldCheck className="w-6 h-6" />
@@ -778,9 +874,9 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
                   <div className="p-2.5 bg-indigo-50 dark:bg-indigo-900/30 rounded-xl">
                     <Plane className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
                   </div>
-                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Adicionar Voo</h2>
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{editingFlightId ? "Editar Voo" : "Adicionar Voo"}</h2>
                 </div>
-                <button onClick={() => setIsAddFlightModalOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
+                <button onClick={() => { setIsAddFlightModalOpen(false); setEditingFlightId(null); }} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
                   <X className="w-6 h-6 text-gray-400" />
                 </button>
               </div>
@@ -977,9 +1073,9 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
                   <div className="p-2.5 bg-amber-50 dark:bg-amber-900/30 rounded-xl">
                     <Hotel className="w-6 h-6 text-amber-600 dark:text-amber-400" />
                   </div>
-                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Adicionar Estadia</h2>
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{editingStayId ? "Editar Estadia" : "Adicionar Estadia"}</h2>
                 </div>
-                <button onClick={() => setIsAddStayModalOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
+                <button onClick={() => { setIsAddStayModalOpen(false); setEditingStayId(null); }} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
                   <X className="w-6 h-6 text-gray-400" />
                 </button>
               </div>
@@ -1005,9 +1101,9 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
                   <div className="p-2.5 bg-blue-50 dark:bg-blue-900/30 rounded-xl">
                     <Car className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                   </div>
-                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Aluguel de Carro</h2>
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{editingRentalId ? "Editar Aluguel" : "Aluguel de Carro"}</h2>
                 </div>
-                <button onClick={() => setIsAddRentalModalOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
+                <button onClick={() => { setIsAddRentalModalOpen(false); setEditingRentalId(null); }} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
                   <X className="w-6 h-6 text-gray-400" />
                 </button>
               </div>
@@ -1042,9 +1138,9 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
                   <div className="p-2.5 bg-emerald-50 dark:bg-emerald-900/30 rounded-xl">
                     <ShieldCheck className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
                   </div>
-                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Seguro Viagem</h2>
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{editingInsuranceId ? "Editar Seguro" : "Seguro Viagem"}</h2>
                 </div>
-                <button onClick={() => setIsAddInsuranceModalOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
+                <button onClick={() => { setIsAddInsuranceModalOpen(false); setEditingInsuranceId(null); }} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
                   <X className="w-6 h-6 text-gray-400" />
                 </button>
               </div>
