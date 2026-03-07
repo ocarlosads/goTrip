@@ -831,6 +831,7 @@ function GroupDetailView({ group, onBack, onLeave, user }: { group: Group, onBac
   const { showToast } = useToast();
   const [activeSubTab, setActiveSubTab] = useState("destinations");
   const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
+  const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
   const [groupData, setGroupData] = useState<any>(null);
   const [isLoadingInitial, setIsLoadingInitial] = useState(true);
@@ -968,6 +969,51 @@ function GroupDetailView({ group, onBack, onLeave, user }: { group: Group, onBac
         )}
       </AnimatePresence>
 
+      {/* Members List Pop-up */}
+      <AnimatePresence>
+        {isMembersModalOpen && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsMembersModalOpen(false)}
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative bg-white dark:bg-gray-900 w-full max-w-lg rounded-3xl shadow-2xl p-6 md:p-8 overflow-hidden transition-colors flex flex-col"
+              style={{ maxHeight: '80vh' }}
+            >
+              <div className="flex items-center justify-between mb-6 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-indigo-50 dark:bg-indigo-900/30 rounded-xl">
+                    <Users className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                  </div>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">Participantes</h2>
+                </div>
+                <button
+                  onClick={() => setIsMembersModalOpen(false)}
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+                >
+                  <X className="w-6 h-6 text-gray-400" />
+                </button>
+              </div>
+
+              <div className="overflow-y-auto no-scrollbar pr-1 flex-1">
+                <MembersView groupId={group.id} initialData={groupData?.members} />
+              </div>
+
+              <div className="mt-6 pt-4 border-t border-gray-100 dark:border-gray-800 shrink-0 text-center">
+                <p className="text-xs text-gray-400">Total de participantes: {group.memberCount}</p>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="flex items-center gap-4 md:gap-6">
           <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl md:rounded-3xl overflow-hidden shadow-md shrink-0">
@@ -981,9 +1027,12 @@ function GroupDetailView({ group, onBack, onLeave, user }: { group: Group, onBac
               <h1 className="text-xl md:text-3xl font-bold text-gray-900 dark:text-white truncate">{group.name}</h1>
             </div>
             <div className="flex items-center gap-4 mt-1">
-              <span className="flex items-center gap-1.5 text-xs md:text-sm text-gray-500 dark:text-gray-400 font-medium whitespace-nowrap">
+              <button
+                onClick={() => setIsMembersModalOpen(true)}
+                className="flex items-center gap-1.5 text-xs md:text-sm text-gray-500 dark:text-gray-400 font-medium whitespace-nowrap hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+              >
                 <Users className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" /> {group.memberCount} membros
-              </span>
+              </button>
               <span className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
                 Ativo
               </span>
@@ -1019,15 +1068,6 @@ function GroupDetailView({ group, onBack, onLeave, user }: { group: Group, onBac
           >
             Custos
           </button>
-          <button
-            onClick={() => setActiveSubTab("members")}
-            className={cn(
-              "px-5 md:px-6 py-2 rounded-xl text-xs md:text-sm font-bold transition-all whitespace-nowrap",
-              activeSubTab === "members" ? "bg-indigo-600 text-white shadow-md shadow-indigo-100 dark:shadow-none" : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-            )}
-          >
-            Membros
-          </button>
         </div>
       </div>
 
@@ -1042,7 +1082,6 @@ function GroupDetailView({ group, onBack, onLeave, user }: { group: Group, onBac
             {activeSubTab === "destinations" && <TripView groupId={group.id} initialData={groupData?.destinations} />}
             {activeSubTab === "itinerary" && <ItineraryView groupId={group.id} initialData={{ itinerary: groupData?.itinerary, flights: groupData?.flights, stays: groupData?.stays }} />}
             {activeSubTab === "expenses" && <ExpenseList groupType={group.type} groupId={group.id} currentUserId={user?.id || ""} initialData={{ expenses: groupData?.expenses, members: groupData?.members }} />}
-            {activeSubTab === "members" && <MembersView groupId={group.id} initialData={groupData?.members} />}
           </>
         )}
       </div>
