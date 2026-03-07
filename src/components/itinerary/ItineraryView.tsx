@@ -1810,7 +1810,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                     <select className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium text-sm" onChange={(e) => setSharingUserId(e.target.value)} value={sharingUserId}>
                       <option value="">Selecionar membro...</option>
                       {members.map(m => (
-                        <option key={m.user.id} value={m.user.id}>{m.user.name || m.user.email}</option>
+                        <option key={m.id} value={m.id}>{m.name || m.email}</option>
                       ))}
                     </select>
                   </div>

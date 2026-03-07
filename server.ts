@@ -790,6 +790,7 @@ async function startServer() {
           checkIn: checkIn ? new Date(checkIn) : null,
           checkOut: checkOut ? new Date(checkOut) : null,
         },
+        include: { members: { include: { user: true } } }
       });
       res.json(stay);
     } catch (err) {
@@ -809,6 +810,7 @@ async function startServer() {
           checkIn: checkIn ? new Date(checkIn) : null,
           checkOut: checkOut ? new Date(checkOut) : null
         },
+        include: { members: { include: { user: true } } }
       });
       res.json(stay);
     } catch { res.status(500).json({ error: "Failed to update stay" }); }
@@ -851,6 +853,7 @@ async function startServer() {
           pickupTime: pickupTime ? new Date(pickupTime) : null,
           dropoffTime: dropoffTime ? new Date(dropoffTime) : null,
         },
+        include: { members: { include: { user: true } } }
       });
       res.json(rental);
     } catch (err) {
@@ -870,6 +873,7 @@ async function startServer() {
           pickupTime: pickupTime ? new Date(pickupTime) : null,
           dropoffTime: dropoffTime ? new Date(dropoffTime) : null
         },
+        include: { members: { include: { user: true } } }
       });
       res.json(rental);
     } catch (err) { res.status(500).json({ error: "Erro ao atualizar aluguel" }); }
