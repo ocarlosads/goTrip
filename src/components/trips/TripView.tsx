@@ -15,11 +15,12 @@ interface Destination {
 
 interface TripViewProps {
   groupId: string;
+  initialData?: Destination[];
 }
 
-export const TripView: React.FC<TripViewProps> = ({ groupId }) => {
-  const [destinations, setDestinations] = useState<Destination[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+export const TripView: React.FC<TripViewProps> = ({ groupId, initialData }) => {
+  const [destinations, setDestinations] = useState<Destination[]>(initialData || []);
+  const [isLoading, setIsLoading] = useState(!initialData);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [newDesc, setNewDesc] = useState("");
@@ -33,8 +34,13 @@ export const TripView: React.FC<TripViewProps> = ({ groupId }) => {
   const [isSavingImage, setIsSavingImage] = useState(false);
 
   useEffect(() => {
+    if (initialData) {
+      setDestinations(initialData);
+      setIsLoading(false);
+      return;
+    }
     fetchDestinations();
-  }, [groupId]);
+  }, [groupId, initialData]);
 
   const fetchDestinations = async () => {
     setIsLoading(true);

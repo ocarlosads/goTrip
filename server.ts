@@ -352,6 +352,79 @@ async function startServer() {
     }
   });
 
+  // ─── Group Global Data (Pre-fetching) ──────────────────────────────────────
+  app.get("/api/groups/:groupId/data", authenticate, async (req: any, res) => {
+    const { groupId } = req.params;
+    try {
+      const [destinations, itinerary, flights, stays, expenses, group] = await Promise.all([
+        prisma.destination.findMany({ where: { groupId }, include: { votes: true } }),
+        prisma.itineraryItem.findMany({ where: { groupId }, orderBy: [{ date: "asc" }, { time: "asc" }] }),
+        prisma.flight.findMany({ where: { groupId }, orderBy: { departureTime: "asc" } }),
+        prisma.stay.findMany({ where: { groupId }, orderBy: { checkIn: "asc" } }),
+        prisma.expense.findMany({
+          where: { groupId },
+          include: { paidBy: true, splits: { include: { user: true } } },
+          orderBy: { date: "desc" },
+        }),
+        prisma.group.findUnique({
+          where: { id: groupId },
+          include: {
+            members: {
+              include: {
+                user: { select: { id: true, name: true, email: true } }
+              }
+            }
+          }
+        })
+      ]);
+
+      const user = await prisma.user.findUnique({ where: { email: req.user.email } });
+
+      const formattedExpenses = expenses.map((exp) => ({
+        id: exp.id,
+        description: exp.description,
+        amount: exp.amount,
+        date: exp.date.toISOString(),
+        payers: [{ userId: exp.paidById, userName: exp.paidBy.name || exp.paidBy.email, amount: exp.amount }],
+        splits: exp.splits.map((s) => ({
+          userId: s.userId,
+          userName: s.user.name || s.user.email,
+          amount: s.amount,
+          shares: s.shares,
+          isPaid: s.isPaid,
+        })),
+      }));
+
+      const formattedDestinations = destinations.map(d => ({
+        id: d.id,
+        name: d.name,
+        description: d.description,
+        image: d.image,
+        votes: d.votes.reduce((sum, v) => sum + v.value, 0),
+        userVote: d.votes.find(v => v.userId === user?.id)?.value || 0
+      }));
+
+      const formattedMembers = group?.members.map(m => ({
+        id: m.user.id,
+        name: m.user.name || m.user.email,
+        email: m.user.email,
+        role: m.role
+      })) || [];
+
+      res.json({
+        destinations: formattedDestinations,
+        itinerary,
+        flights,
+        stays,
+        expenses: formattedExpenses,
+        members: formattedMembers
+      });
+    } catch (err) {
+      console.error("Error fetching group aggregate data:", err);
+      res.status(500).json({ error: "Failed to fetch group data" });
+    }
+  });
+
   // ─── Destination Endpoints ─────────────────────────────────────────────────
   app.get("/api/groups/:groupId/destinations", authenticate, async (req: any, res) => {
     const { groupId } = req.params;

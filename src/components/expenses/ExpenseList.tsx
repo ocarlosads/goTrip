@@ -38,39 +38,32 @@ interface ExpenseListProps {
   groupType?: "solo" | "couple" | "group";
   groupId: string;
   currentUserId: string;
+  initialData?: {
+    expenses: Expense[];
+    members: Member[];
+  };
 }
 
-export const ExpenseList: React.FC<ExpenseListProps> = ({ groupType = "group", groupId, currentUserId }) => {
-  const [allMembers, setAllMembers] = useState<Member[]>([]);
+export const ExpenseList: React.FC<ExpenseListProps> = ({ groupType = "group", groupId, currentUserId, initialData }) => {
+  const [allMembers, setAllMembers] = useState<Member[]>(initialData?.members || []);
+  const [expenses, setExpenses] = useState<Expense[]>(initialData?.expenses || []);
+  const [isLoadingExpenses, setIsLoadingExpenses] = useState(!initialData);
 
   useEffect(() => {
+    if (initialData) {
+      setAllMembers(initialData.members);
+      setExpenses(initialData.expenses);
+      setIsLoadingExpenses(false);
+      return;
+    }
+
     const fetchMembers = async () => {
       try {
         const res = await apiFetch(`/api/groups/${groupId}/members`);
         if (res.ok) setAllMembers(await res.json());
       } catch (err) { console.error("Error fetching members:", err); }
     };
-    fetchMembers();
-  }, [groupId]);
 
-  const membersWithLabel = allMembers.map((m) => ({
-    ...m,
-    displayName: m.id === currentUserId ? `Você (${m.name})` : m.name,
-  }));
-
-  const activeMembers = membersWithLabel.length === 0
-    ? [{ id: currentUserId, name: "Você", email: "", displayName: "Você" }]
-    : groupType === "solo"
-      ? membersWithLabel.filter((m) => m.id === currentUserId)
-      : groupType === "couple"
-        ? membersWithLabel.slice(0, 2)
-        : membersWithLabel;
-
-
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [isLoadingExpenses, setIsLoadingExpenses] = useState(true);
-
-  useEffect(() => {
     const fetchExpenses = async () => {
       setIsLoadingExpenses(true);
       try {
@@ -86,8 +79,24 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ groupType = "group", g
       }
     };
 
+    fetchMembers();
     fetchExpenses();
-  }, [groupId]);
+  }, [groupId, initialData]);
+
+  const membersWithLabel = allMembers.map((m) => ({
+    ...m,
+    displayName: m.id === currentUserId ? `Você (${m.name})` : m.name,
+  }));
+
+  const activeMembers = membersWithLabel.length === 0
+    ? [{ id: currentUserId, name: "Você", email: "", displayName: "Você" }]
+    : groupType === "solo"
+      ? membersWithLabel.filter((m) => m.id === currentUserId)
+      : groupType === "couple"
+        ? membersWithLabel.slice(0, 2)
+        : membersWithLabel;
+
+  const isSolo = groupType === "solo";
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [expandedExpense, setExpandedExpense] = useState<string | null>(null);
@@ -313,7 +322,6 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ groupType = "group", g
 
   const { finalDebts, balances } = calculateDetailedDebts();
 
-  const isSolo = groupType === "solo";
 
   const handleNotify = async (from: string, to: string, amount: number) => {
     try {

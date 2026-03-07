@@ -4,10 +4,30 @@
 
 @layer base {
   html, body {
-    @apply transition-colors duration-500;
+    @apply transition-colors duration-500 overflow-x-hidden;
+    -webkit-tap-highlight-color: transparent;
   }
   
   * {
     @apply transition-colors duration-200;
+  }
+}
+
+@layer utilities {
+  .safe-top {
+    padding-top: max(1rem, env(safe-area-inset-top));
+  }
+  
+  .safe-bottom {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
 }

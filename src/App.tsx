@@ -3,8 +3,7 @@ import { LoginForm } from "./components/auth/LoginForm";
 import { TripView } from "./components/trips/TripView";
 import { ExpenseList } from "./components/expenses/ExpenseList";
 import { ItineraryView } from "./components/itinerary/ItineraryView";
-import { PricingPage } from "./components/billing/PricingPage";
-import { Loader2, Plus, Users, MapPin, Wallet, Settings, LogOut, Menu, X, ArrowLeft, CreditCard, Shield, TrendingUp, UserPlus, DollarSign, Calendar, Moon, Sun, Bell } from "lucide-react";
+import { Loader2, Plus, Users, MapPin, Wallet, Settings, LogOut, Menu, X, ArrowLeft, Shield, TrendingUp, UserPlus, DollarSign, Calendar, Moon, Sun, Bell } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn, formatCurrency } from "./lib/utils";
 import { apiFetch, setAuthToken, removeAuthToken } from "./lib/api";
@@ -170,12 +169,6 @@ function AppContent({
             onClick={() => setActiveTab("finance")}
           />
           <NavItem
-            icon={<CreditCard className="w-5 h-5" />}
-            label="Planos"
-            active={activeTab === "pricing"}
-            onClick={() => setActiveTab("pricing")}
-          />
-          <NavItem
             icon={<Settings className="w-5 h-5" />}
             label="Configurações"
             active={activeTab === "settings"}
@@ -198,7 +191,6 @@ function AppContent({
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{user.email}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Plano Free</p>
             </div>
           </div>
           <button
@@ -211,12 +203,12 @@ function AppContent({
       </aside>
 
       {/* Mobile Header */}
-      <header className="md:hidden bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 p-4 flex items-center justify-between sticky top-0 z-50 transition-colors">
+      <header className="md:hidden bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 p-4 flex items-center justify-between sticky top-0 z-[60] transition-colors safe-top">
         <div className="flex items-center gap-2">
-          <div className="bg-indigo-600 p-1.5 rounded-lg">
+          <div className="bg-indigo-600 p-1.5 rounded-lg shadow-sm">
             <Plus className="text-white w-4 h-4 rotate-45" />
           </div>
-          <span className="font-bold text-gray-900 dark:text-white">goTrip</span>
+          <span className="font-bold text-gray-900 dark:text-white tracking-tight">goTrip</span>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -235,10 +227,10 @@ function AppContent({
       <AnimatePresence>
         {isMobileMenuOpen && (
           <motion.div
-            initial={{ opacity: 0, y: -20 }}
+            initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="md:hidden fixed inset-0 top-[65px] bg-white dark:bg-gray-900 z-40 p-6 flex flex-col transition-colors"
+            exit={{ opacity: 0, y: -10 }}
+            className="md:hidden fixed inset-0 top-[65px] bg-white/95 dark:bg-gray-900/95 backdrop-blur-md z-[55] p-6 flex flex-col transition-colors"
           >
             <nav className="space-y-4">
               <NavItem
@@ -293,8 +285,6 @@ function AppContent({
               onLeave={(id) => { setSelectedGroup(null); }}
             />
           )}
-
-          {activeTab === "pricing" && <PricingPage />}
 
           {activeTab === "admin" && isAdmin && <AdminDashboardView />}
 
@@ -782,8 +772,8 @@ function AdminDashboardView() {
   const stats = [
     { label: "Total de Usuários", value: "1,284", icon: <UserPlus className="w-5 h-5" />, color: "bg-blue-500" },
     { label: "Grupos Ativos", value: "452", icon: <Users className="w-5 h-5" />, color: "bg-indigo-500" },
-    { label: "Receita Mensal", value: "R$ 8.420", icon: <DollarSign className="w-5 h-5" />, color: "bg-emerald-500" },
-    { label: "Taxa de Conversão", value: "12.4%", icon: <TrendingUp className="w-5 h-5" />, color: "bg-amber-500" },
+    { label: "Viagens Realizadas", value: "892", icon: <MapPin className="w-5 h-5" />, color: "bg-emerald-500" },
+    { label: "Check-ins Hoje", value: "48", icon: <Calendar className="w-5 h-5" />, color: "bg-amber-500" },
   ];
 
   return (
@@ -812,9 +802,9 @@ function AdminDashboardView() {
         </div>
         <div className="divide-y divide-gray-50 dark:divide-gray-800">
           {[
-            { name: "Carlos Oliveira", email: "carlos@gmail.com", plan: "PRO", date: "Hoje" },
-            { name: "Mariana Costa", email: "mari@outlook.com", plan: "FREE", date: "Ontem" },
-            { name: "Roberto Santos", email: "beto@uol.com.br", plan: "PRO", date: "2 dias atrás" },
+            { name: "Carlos Oliveira", email: "carlos@gmail.com", date: "Hoje" },
+            { name: "Mariana Costa", email: "mari@outlook.com", date: "Ontem" },
+            { name: "Roberto Santos", email: "beto@uol.com.br", date: "2 dias atrás" },
           ].map((u, i) => (
             <div key={i} className="p-4 flex items-center justify-between px-6">
               <div className="flex items-center gap-3">
@@ -827,12 +817,6 @@ function AdminDashboardView() {
                 </div>
               </div>
               <div className="flex items-center gap-4">
-                <span className={cn(
-                  "text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider",
-                  u.plan === "PRO" ? "bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300" : "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400"
-                )}>
-                  {u.plan}
-                </span>
                 <span className="text-xs text-gray-400 dark:text-gray-500">{u.date}</span>
               </div>
             </div>
@@ -848,12 +832,33 @@ function GroupDetailView({ group, onBack, onLeave, user }: { group: Group, onBac
   const [activeSubTab, setActiveSubTab] = useState("destinations");
   const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
+  const [groupData, setGroupData] = useState<any>(null);
+  const [isLoadingInitial, setIsLoadingInitial] = useState(true);
 
   // Edit Image State
   const [isEditImageModalOpen, setIsEditImageModalOpen] = useState(false);
   const [newImageLink, setNewImageLink] = useState(group.image);
   const [isSavingImage, setIsSavingImage] = useState(false);
   const [currentGroupImage, setCurrentGroupImage] = useState(group.image);
+
+  // Pre-fetch all group data
+  useEffect(() => {
+    const fetchGroupData = async () => {
+      setIsLoadingInitial(true);
+      try {
+        const res = await apiFetch(`/api/groups/${group.id}/data`);
+        if (res.ok) {
+          const data = await res.json();
+          setGroupData(data);
+        }
+      } catch (err) {
+        console.error("Error pre-fetching group data:", err);
+      } finally {
+        setIsLoadingInitial(false);
+      }
+    };
+    fetchGroupData();
+  }, [group.id]);
 
   const copyId = () => {
     navigator.clipboard.writeText(group.inviteCode);
@@ -964,33 +969,33 @@ function GroupDetailView({ group, onBack, onLeave, user }: { group: Group, onBac
       </AnimatePresence>
 
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div className="flex items-center gap-6">
-          <div className="w-20 h-20 rounded-3xl overflow-hidden shadow-md">
-            <img src={group.image} alt={group.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+        <div className="flex items-center gap-4 md:gap-6">
+          <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl md:rounded-3xl overflow-hidden shadow-md shrink-0">
+            <img src={currentGroupImage} alt={group.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
           </div>
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="bg-indigo-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+          <div className="min-w-0">
+            <div className="flex flex-col mb-1">
+              <span className="w-fit bg-indigo-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider mb-1">
                 {group.type === "solo" ? "Solo" : group.type === "couple" ? "Casal" : "Grupo"}
               </span>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{group.name}</h1>
+              <h1 className="text-xl md:text-3xl font-bold text-gray-900 dark:text-white truncate">{group.name}</h1>
             </div>
-            <div className="flex items-center gap-4 mt-2">
-              <span className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 font-medium">
-                <Users className="w-4 h-4 text-indigo-600 dark:text-indigo-400" /> {group.memberCount} membros
+            <div className="flex items-center gap-4 mt-1">
+              <span className="flex items-center gap-1.5 text-xs md:text-sm text-gray-500 dark:text-gray-400 font-medium whitespace-nowrap">
+                <Users className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" /> {group.memberCount} membros
               </span>
-              <span className="bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+              <span className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
                 Ativo
               </span>
             </div>
           </div>
         </div>
 
-        <div className="flex bg-white dark:bg-gray-900 p-1 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm transition-colors">
+        <div className="flex bg-white dark:bg-gray-900 p-1 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm transition-colors overflow-x-auto no-scrollbar scroll-smooth">
           <button
             onClick={() => setActiveSubTab("destinations")}
             className={cn(
-              "px-6 py-2 rounded-xl text-sm font-bold transition-all",
+              "px-5 md:px-6 py-2 rounded-xl text-xs md:text-sm font-bold transition-all whitespace-nowrap",
               activeSubTab === "destinations" ? "bg-indigo-600 text-white shadow-md shadow-indigo-100 dark:shadow-none" : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
             )}
           >
@@ -999,7 +1004,7 @@ function GroupDetailView({ group, onBack, onLeave, user }: { group: Group, onBac
           <button
             onClick={() => setActiveSubTab("itinerary")}
             className={cn(
-              "px-6 py-2 rounded-xl text-sm font-bold transition-all",
+              "px-5 md:px-6 py-2 rounded-xl text-xs md:text-sm font-bold transition-all whitespace-nowrap",
               activeSubTab === "itinerary" ? "bg-indigo-600 text-white shadow-md shadow-indigo-100 dark:shadow-none" : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
             )}
           >
@@ -1008,7 +1013,7 @@ function GroupDetailView({ group, onBack, onLeave, user }: { group: Group, onBac
           <button
             onClick={() => setActiveSubTab("expenses")}
             className={cn(
-              "px-6 py-2 rounded-xl text-sm font-bold transition-all",
+              "px-5 md:px-6 py-2 rounded-xl text-xs md:text-sm font-bold transition-all whitespace-nowrap",
               activeSubTab === "expenses" ? "bg-indigo-600 text-white shadow-md shadow-indigo-100 dark:shadow-none" : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
             )}
           >
@@ -1017,7 +1022,7 @@ function GroupDetailView({ group, onBack, onLeave, user }: { group: Group, onBac
           <button
             onClick={() => setActiveSubTab("members")}
             className={cn(
-              "px-6 py-2 rounded-xl text-sm font-bold transition-all",
+              "px-5 md:px-6 py-2 rounded-xl text-xs md:text-sm font-bold transition-all whitespace-nowrap",
               activeSubTab === "members" ? "bg-indigo-600 text-white shadow-md shadow-indigo-100 dark:shadow-none" : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
             )}
           >
@@ -1027,20 +1032,35 @@ function GroupDetailView({ group, onBack, onLeave, user }: { group: Group, onBac
       </div>
 
       <div className="pt-4">
-        {activeSubTab === "destinations" && <TripView groupId={group.id} />}
-        {activeSubTab === "itinerary" && <ItineraryView groupId={group.id} />}
-        {activeSubTab === "expenses" && <ExpenseList groupType={group.type} groupId={group.id} currentUserId={user?.id || ""} />}
-        {activeSubTab === "members" && <MembersView groupId={group.id} />}
+        {isLoadingInitial ? (
+          <div className="flex flex-col items-center justify-center py-20 space-y-4">
+            <Loader2 className="w-10 h-10 animate-spin text-indigo-600" />
+            <p className="font-medium text-gray-500 dark:text-gray-400">Preparando sua viagem...</p>
+          </div>
+        ) : (
+          <>
+            {activeSubTab === "destinations" && <TripView groupId={group.id} initialData={groupData?.destinations} />}
+            {activeSubTab === "itinerary" && <ItineraryView groupId={group.id} initialData={{ itinerary: groupData?.itinerary, flights: groupData?.flights, stays: groupData?.stays }} />}
+            {activeSubTab === "expenses" && <ExpenseList groupType={group.type} groupId={group.id} currentUserId={user?.id || ""} initialData={{ expenses: groupData?.expenses, members: groupData?.members }} />}
+            {activeSubTab === "members" && <MembersView groupId={group.id} initialData={groupData?.members} />}
+          </>
+        )}
       </div>
     </div>
   );
 }
 
-function MembersView({ groupId }: { groupId: string }) {
-  const [members, setMembers] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+function MembersView({ groupId, initialData }: { groupId: string, initialData?: any[] }) {
+  const [members, setMembers] = useState<any[]>(initialData || []);
+  const [isLoading, setIsLoading] = useState(!initialData);
 
   useEffect(() => {
+    if (initialData) {
+      setMembers(initialData);
+      setIsLoading(false);
+      return;
+    }
+
     const fetchMembers = async () => {
       setIsLoading(true);
       try {
@@ -1056,7 +1076,7 @@ function MembersView({ groupId }: { groupId: string }) {
       }
     };
     fetchMembers();
-  }, [groupId]);
+  }, [groupId, initialData]);
 
   if (isLoading) {
     return (

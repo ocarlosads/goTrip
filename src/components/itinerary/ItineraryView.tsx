@@ -40,13 +40,18 @@ interface Stay {
 
 interface ItineraryViewProps {
   groupId: string;
+  initialData?: {
+    itinerary: ItineraryItem[];
+    flights: Flight[];
+    stays: Stay[];
+  };
 }
 
-export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId }) => {
-  const [days, setDays] = useState<GroupedDay[]>([]);
-  const [flights, setFlights] = useState<Flight[]>([]);
-  const [stays, setStays] = useState<Stay[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialData }) => {
+  const [days, setDays] = useState<GroupedDay[]>(initialData ? groupItemsByDate(initialData.itinerary) : []);
+  const [flights, setFlights] = useState<Flight[]>(initialData?.flights || []);
+  const [stays, setStays] = useState<Stay[]>(initialData?.stays || []);
+  const [isLoading, setIsLoading] = useState(!initialData);
   const [activeSection, setActiveSection] = useState<"days" | "logistics">("days");
 
   // Modals
@@ -81,8 +86,32 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId }) => {
   const [sCheckOut, setSCheckOut] = useState("");
 
   useEffect(() => {
+    if (initialData) {
+      setDays(groupItemsByDate(initialData.itinerary));
+      setFlights(initialData.flights);
+      setStays(initialData.stays);
+      setIsLoading(false);
+      return;
+    }
     fetchAll();
-  }, [groupId]);
+  }, [groupId, initialData]);
+
+  function groupItemsByDate(items: ItineraryItem[]): GroupedDay[] {
+    const map: Record<string, GroupedDay> = {};
+    for (const item of items) {
+      const dateKey = item.date.split("T")[0];
+      if (!map[dateKey]) {
+        map[dateKey] = { dateKey, title: dateKey, activities: [] };
+      }
+      if (item.type === "day_header") {
+        map[dateKey].headerId = item.id;
+        map[dateKey].title = item.title;
+      } else {
+        map[dateKey].activities.push(item);
+      }
+    }
+    return Object.values(map).sort((a, b) => a.dateKey.localeCompare(b.dateKey));
+  }
 
   const fetchAll = async () => {
     setIsLoading(true);
@@ -101,23 +130,6 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId }) => {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const groupItemsByDate = (items: ItineraryItem[]): GroupedDay[] => {
-    const map: Record<string, GroupedDay> = {};
-    for (const item of items) {
-      const dateKey = item.date.split("T")[0];
-      if (!map[dateKey]) {
-        map[dateKey] = { dateKey, title: dateKey, activities: [] };
-      }
-      if (item.type === "day_header") {
-        map[dateKey].headerId = item.id;
-        map[dateKey].title = item.title;
-      } else {
-        map[dateKey].activities.push(item);
-      }
-    }
-    return Object.values(map).sort((a, b) => a.dateKey.localeCompare(b.dateKey));
   };
 
   const handleAddDay = async (e: React.FormEvent) => {
