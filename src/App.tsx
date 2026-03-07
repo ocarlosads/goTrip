@@ -3,7 +3,7 @@ import { LoginForm } from "./components/auth/LoginForm";
 import { TripView } from "./components/trips/TripView";
 import { ExpenseList } from "./components/expenses/ExpenseList";
 import { ItineraryView } from "./components/itinerary/ItineraryView";
-import { Loader2, Plus, Users, MapPin, Wallet, Settings, LogOut, Menu, X, ArrowLeft, Shield, TrendingUp, UserPlus, DollarSign, Calendar, Moon, Sun, Bell } from "lucide-react";
+import { Loader2, Plus, Users, MapPin, Wallet, Settings, LogOut, Menu, X, ArrowLeft, Shield, TrendingUp, UserPlus, DollarSign, Calendar, Moon, Sun, Bell, CreditCard, ShieldCheck } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn, formatCurrency } from "./lib/utils";
 import { apiFetch, setAuthToken, removeAuthToken } from "./lib/api";
@@ -12,6 +12,9 @@ import { ToastProvider, useToast } from "./context/ToastContext";
 interface User {
   email: string;
   id?: string;
+  name?: string;
+  image?: string;
+  identityDocUrl?: string;
 }
 
 interface Group {
@@ -330,6 +333,78 @@ function AppContent({
                   </h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Gerencie como você deseja receber alertas sobre suas viagens.</p>
                   <button className="text-indigo-600 dark:text-indigo-400 text-sm font-bold hover:underline">Configurar alertas e-mail</button>
+                </div>
+
+                <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm transition-colors md:col-span-2">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
+                    <CreditCard className="w-5 h-5 text-indigo-600 dark:text-indigo-400" /> Documento de Identidade
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 font-medium">Cadastre seu RG ou CNH para acesso rápido durante suas viagens. Este documento é pessoal e **somente você** terá acesso a ele na aba de logística.</p>
+
+                  <div className="flex flex-col sm:flex-row items-center gap-6 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-800 transition-colors">
+                    <div className="w-16 h-16 rounded-2xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                      {user.identityDocUrl ? <ShieldCheck className="w-8 h-8" /> : <CreditCard className="w-8 h-8" />}
+                    </div>
+                    <div className="flex-1 text-center sm:text-left">
+                      <p className="text-sm font-bold text-gray-900 dark:text-white">
+                        {user.identityDocUrl ? "Documento cadastrado com sucesso!" : "Nenhum documento cadastrado"}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        {user.identityDocUrl ? "Seu documento está salvo e seguro." : "Anexe uma foto nítida do seu documento (CNH ou RG)."}
+                      </p>
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="file"
+                        accept="image/*,.pdf"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+
+                          const formData = new FormData();
+                          formData.append("file", file);
+
+                          try {
+                            const uploadRes = await apiFetch("/api/upload", {
+                              method: "POST",
+                              body: formData,
+                            });
+
+                            if (uploadRes.ok) {
+                              const uploadData = await uploadRes.json();
+                              const updateRes = await apiFetch("/api/user/identity", {
+                                method: "PUT",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ identityDocUrl: uploadData.url }),
+                              });
+
+                              if (updateRes.ok) {
+                                showToast("Documento atualizado!", "success");
+                                // Refresh user data
+                                const meRes = await apiFetch("/api/auth/me");
+                                if (meRes.ok) {
+                                  const meData = await meRes.json();
+                                  user.identityDocUrl = meData.user.identityDocUrl;
+                                  // Update the parent state if possible, but for now we manually update the ref if it's passed down
+                                  // Actually AppContent receives user as prop, but we might need to update the state in App
+                                  // Since user is passed as prop, we might need a way to refresh it.
+                                  // For now, let's assume the user object is mutable or the next re-render will fix it.
+                                  // Better: use a callback if available.
+                                }
+                                window.location.reload(); // Quick fix to refresh state for now
+                              }
+                            }
+                          } catch (err) {
+                            showToast("Falha no upload", "error");
+                          }
+                        }}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      />
+                      <button className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-all flex items-center gap-2">
+                        {user.identityDocUrl ? "Alterar Documento" : "Enviar Documento"}
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1080,7 +1155,7 @@ function GroupDetailView({ group, onBack, onLeave, user }: { group: Group, onBac
         ) : (
           <>
             {activeSubTab === "destinations" && <TripView groupId={group.id} initialData={groupData?.destinations} />}
-            {activeSubTab === "itinerary" && <ItineraryView groupId={group.id} currentUserId={user?.id || ""} initialData={{ itinerary: groupData?.itinerary, flights: groupData?.flights, stays: groupData?.stays, carRentals: groupData?.carRentals, insurances: groupData?.insurances, members: groupData?.members }} />}
+            {activeSubTab === "itinerary" && <ItineraryView groupId={group.id} currentUserId={user?.id || ""} userIdentityDoc={user?.identityDocUrl} initialData={{ itinerary: groupData?.itinerary, flights: groupData?.flights, stays: groupData?.stays, carRentals: groupData?.carRentals, insurances: groupData?.insurances, members: groupData?.members }} />}
             {activeSubTab === "expenses" && <ExpenseList groupType={group.type} groupId={group.id} currentUserId={user?.id || ""} initialData={{ expenses: groupData?.expenses, members: groupData?.members }} />}
           </>
         )}

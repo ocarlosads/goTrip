@@ -79,6 +79,7 @@ interface Insurance {
 interface ItineraryViewProps {
   groupId: string;
   currentUserId: string;
+  userIdentityDoc?: string | null;
   initialData?: {
     itinerary?: ItineraryItem[];
     flights?: Flight[];
@@ -89,7 +90,7 @@ interface ItineraryViewProps {
   };
 }
 
-export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUserId, initialData }) => {
+export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUserId, userIdentityDoc, initialData }) => {
   const [days, setDays] = useState<GroupedDay[]>(initialData ? groupItemsByDate(initialData.itinerary) : []);
   const [flights, setFlights] = useState<Flight[]>(initialData?.flights || []);
   const [stays, setStays] = useState<Stay[]>(initialData?.stays || []);
@@ -545,6 +546,41 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
         </div>
       ) : (
         <div className="space-y-6">
+          {/* Meus Documentos Pessoais - PRIVADO */}
+          {userIdentityDoc && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-indigo-600 rounded-[32px] p-6 text-white shadow-xl shadow-indigo-200 dark:shadow-none relative overflow-hidden group"
+            >
+              <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform">
+                <ShieldCheck className="w-32 h-32" />
+              </div>
+              <div className="relative z-10">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="bg-white/20 p-2 rounded-xl backdrop-blur-md">
+                    <CreditCard className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold">Meus Documentos Pessoais</h3>
+                    <p className="text-xs text-indigo-100 italic">Somente você pode ver este card</p>
+                  </div>
+                </div>
+                <div className="flex border-t border-white/10 pt-4 mt-2">
+                  <button
+                    onClick={() => {
+                      setViewingBoardingPassUrl(userIdentityDoc);
+                      setIsBoardingPassModalOpen(true);
+                    }}
+                    className="bg-white text-indigo-600 px-6 py-3 rounded-2xl text-sm font-bold flex items-center gap-2 hover:bg-indigo-50 transition-all active:scale-95 shadow-lg"
+                  >
+                    <Info className="w-4 h-4" /> Visualizar meu RG/CNH
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
           {/* Logistics Tabs */}
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2">
             {[
@@ -685,28 +721,8 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                                     <ShieldCheck className="w-3.5 h-3.5" /> Cartão
                                   </button>
                                 ) : (
-                                  <div className="py-2.5 bg-gray-50 dark:bg-gray-800/40 text-gray-400 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1.5 border border-transparent italic">
+                                  <div className="py-2.5 bg-gray-50 dark:bg-gray-800/40 text-gray-400 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1.5 border border-transparent italic col-span-2">
                                     <Plus className="w-3.5 h-3.5" /> Sem Cartão
-                                  </div>
-                                )}
-                                {p.identityDocUrl ? (
-                                  <button
-                                    onClick={() => {
-                                      setViewingBoardingPassUrl(p.identityDocUrl!);
-                                      setIsBoardingPassModalOpen(true);
-                                    }}
-                                    className={cn(
-                                      "py-2.5 rounded-xl text-[10px] font-bold transition-all flex items-center justify-center gap-1.5 border",
-                                      p.userId === currentUserId
-                                        ? "bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-500/10 active:scale-95"
-                                        : "bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 border-indigo-100/30"
-                                    )}
-                                  >
-                                    <CreditCard className="w-3.5 h-3.5" /> RG/CNH
-                                  </button>
-                                ) : (
-                                  <div className="py-2.5 bg-gray-50 dark:bg-gray-800/40 text-gray-400 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1.5 border border-transparent italic">
-                                    <Plus className="w-3.5 h-3.5" /> Sem RG/CNH
                                   </div>
                                 )}
                               </div>
@@ -1108,40 +1124,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                   </button>
                 </div>
 
-                <div className="bg-amber-50/50 dark:bg-amber-900/10 p-4 rounded-2xl border border-amber-100 dark:border-amber-900/20">
-                  <label className="block text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase mb-2 flex items-center gap-2">
-                    <CreditCard className="w-3.5 h-3.5" /> Identidade do Passageiro (CNH/RG)
-                  </label>
-                  <input
-                    type="file"
-                    accept=".pdf,image/*"
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        setIsUploading(true);
-                        try {
-                          const url = await handleFileUpload(file);
-                          setFIdentityDocUrl(url);
-                        } catch (err: any) {
-                          alert("Erro no upload: " + err.message);
-                        } finally {
-                          setIsUploading(false);
-                        }
-                      }
-                    }}
-                    className="w-full px-3 py-2 text-[10px] text-gray-500 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-[9px] file:font-semibold file:bg-amber-100 file:text-amber-700 hover:file:bg-amber-200 cursor-pointer"
-                    disabled={isUploading}
-                  />
-                  {fIdentityDocUrl && (
-                    <div className="flex items-center gap-2 mt-2">
-                      <div className="flex-1 h-1 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
-                        <div className="h-full bg-emerald-500 w-full"></div>
-                      </div>
-                      <span className="text-[9px] font-bold text-emerald-600 flex items-center gap-1"><ShieldCheck className="w-3 h-3" /> DOCUMENTO ANEXADO</span>
-                    </div>
-                  )}
-                  <p className="text-[9px] text-gray-400 mt-2">Este documento será vinculado ao seu perfil neste voo.</p>
-                </div>
+
 
                 <button
                   type="submit"

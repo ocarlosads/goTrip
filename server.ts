@@ -168,7 +168,7 @@ async function startServer() {
 
       const token = jwt.sign({ email: user.email, id: user.id }, JWT_SECRET, { expiresIn: "7d" });
       res.cookie("auth_token", token, { httpOnly: true, secure: false, sameSite: "lax", maxAge: 7 * 24 * 60 * 60 * 1000 });
-      res.json({ user: { email: user.email, id: user.id }, token });
+      res.json({ user: { email: user.email, id: user.id, identityDocUrl: (user as any).identityDocUrl }, token });
     } catch (err) {
       console.error("Login error:", err);
       res.status(500).json({ error: "Erro ao fazer login" });
@@ -203,7 +203,7 @@ async function startServer() {
 
       const token = jwt.sign({ email: user.email, id: user.id }, JWT_SECRET, { expiresIn: "7d" });
       res.cookie("auth_token", token, { httpOnly: true, secure: false, sameSite: "lax", maxAge: 7 * 24 * 60 * 60 * 1000 });
-      res.json({ user: { email: user.email, id: user.id, name: user.name, image: user.image }, token });
+      res.json({ user: { email: user.email, id: user.id, name: user.name, image: user.image, identityDocUrl: (user as any).identityDocUrl }, token });
     } catch (err: any) {
       console.error("Google Auth Error Detail:", err.message, err.stack);
       res.status(401).json({ error: "Falha na autenticação com Google", details: err.message });
@@ -218,9 +218,23 @@ async function startServer() {
   app.get("/api/auth/me", authenticate, async (req: any, res) => {
     try {
       const dbUser = await prisma.user.findUnique({ where: { email: req.user.email } });
-      res.json({ user: { email: req.user.email, id: dbUser?.id || null } });
+      res.json({ user: { email: req.user.email, id: dbUser?.id || null, identityDocUrl: (dbUser as any)?.identityDocUrl || null } });
     } catch {
       res.json({ user: req.user });
+    }
+  });
+
+  app.put("/api/user/identity", authenticate, async (req: any, res) => {
+    const { identityDocUrl } = req.body;
+    try {
+      const updatedUser = await prisma.user.update({
+        where: { id: (req as any).user.id },
+        data: { identityDocUrl }
+      });
+      res.json({ success: true, identityDocUrl: (updatedUser as any).identityDocUrl });
+    } catch (err) {
+      console.error("Error updating identity doc:", err);
+      res.status(500).json({ error: "Erro ao atualizar documento de identidade" });
     }
   });
 
