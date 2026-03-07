@@ -546,8 +546,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
         </div>
       ) : (
         <div className="space-y-6">
-          {/* Meus Documentos Pessoais - PRIVADO */}
-          {userIdentityDoc && (
+          {userIdentityDoc ? (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -576,6 +575,32 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                   >
                     <Info className="w-4 h-4" /> Visualizar meu RG/CNH
                   </button>
+                </div>
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-amber-50 dark:bg-amber-900/10 rounded-[32px] p-6 border border-dashed border-amber-200 dark:border-amber-900/20 relative overflow-hidden"
+            >
+              <div className="flex items-start gap-4">
+                <div className="bg-amber-100 dark:bg-amber-900/30 p-3 rounded-2xl text-amber-600 dark:text-amber-400">
+                  <CreditCard className="w-6 h-6" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">Identidade Pendente</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    Sua CNH ou RG ainda não foi cadastrada. Isso é importante para sua logística de viagem.
+                  </p>
+                  <div className="mt-4 p-3 bg-white/50 dark:bg-gray-900/50 rounded-2xl border border-amber-100 dark:border-amber-900/10 flex items-center gap-3">
+                    <div className="bg-indigo-600 text-white p-1.5 rounded-lg">
+                      <Navigation className="w-3.5 h-3.5" />
+                    </div>
+                    <p className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">
+                      Cadastre no menu: <span className="text-gray-900 dark:text-white ml-1 underline decoration-indigo-300">Configurações</span>
+                    </p>
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -712,7 +737,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                                       setIsBoardingPassModalOpen(true);
                                     }}
                                     className={cn(
-                                      "py-2.5 rounded-xl text-[10px] font-bold transition-all flex items-center justify-center gap-1.5 border",
+                                      "py-2.5 rounded-xl text-[10px] font-bold transition-all flex items-center justify-center gap-1.5 border col-span-2",
                                       p.userId === currentUserId
                                         ? "bg-emerald-600 text-white border-emerald-500 shadow-md shadow-emerald-500/10 active:scale-95"
                                         : "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border-emerald-100/30"
