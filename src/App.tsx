@@ -132,7 +132,7 @@ function AppContent({
   const { showToast } = useToast();
 
   return (
-    <div className="min-h-screen bg-[#F9FAFB] dark:bg-gray-950 flex flex-col md:flex-row transition-colors duration-300 overscroll-none">
+    <div className="min-h-screen bg-[#F9FAFB] dark:bg-gray-950 flex flex-col md:flex-row transition-colors duration-300">
       <aside className="hidden md:flex flex-col w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 p-6 sticky top-0 h-screen transition-colors">
         <div className="flex items-center justify-between mb-10">
           <div className="flex items-center gap-3">
@@ -1080,7 +1080,7 @@ function GroupDetailView({ group, onBack, onLeave, user }: { group: Group, onBac
         ) : (
           <>
             {activeSubTab === "destinations" && <TripView groupId={group.id} initialData={groupData?.destinations} />}
-            {activeSubTab === "itinerary" && <ItineraryView groupId={group.id} initialData={{ itinerary: groupData?.itinerary, flights: groupData?.flights, stays: groupData?.stays, carRentals: groupData?.carRentals, insurances: groupData?.insurances }} />}
+            {activeSubTab === "itinerary" && <ItineraryView groupId={group.id} currentUserId={user?.id || ""} initialData={{ itinerary: groupData?.itinerary, flights: groupData?.flights, stays: groupData?.stays, carRentals: groupData?.carRentals, insurances: groupData?.insurances, members: groupData?.members }} />}
             {activeSubTab === "expenses" && <ExpenseList groupType={group.type} groupId={group.id} currentUserId={user?.id || ""} initialData={{ expenses: groupData?.expenses, members: groupData?.members }} />}
           </>
         )}

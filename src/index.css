@@ -3,11 +3,21 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @layer base {
-  html, body {
-    @apply transition-colors duration-500 overflow-x-hidden;
+
+  html,
+  body {
+    @apply transition-colors duration-500 overflow-x-hidden min-h-screen overscroll-none;
     -webkit-tap-highlight-color: transparent;
+    background-color: #F9FAFB;
+    /* Cor padrão clara */
   }
-  
+
+  .dark html,
+  .dark body {
+    background-color: #030712;
+    /* Cor padrão dark (gray-950) */
+  }
+
   * {
     @apply transition-colors duration-200;
   }
@@ -17,7 +27,7 @@
   .safe-top {
     padding-top: max(1rem, env(safe-area-inset-top));
   }
-  
+
   .safe-bottom {
     padding-bottom: max(1rem, env(safe-area-inset-bottom));
   }

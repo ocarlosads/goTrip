@@ -22,14 +22,30 @@ interface GroupedDay {
 
 interface Flight {
   id: string;
+  groupId: string;
+  creatorId: string;
   number: string | null;
   airline: string | null;
   departureTime: string | null;
   arrivalTime: string | null;
   origin: string | null;
   destination: string | null;
-  boardingPassUrl?: string | null;
-  identityDocUrl?: string | null;
+  createdAt: string;
+  passengers: FlightPassenger[];
+}
+
+interface FlightPassenger {
+  id: string;
+  flightId: string;
+  userId: string;
+  boardingPassUrl: string | null;
+  identityDocUrl: string | null;
+  createdAt: string;
+  user?: {
+    id: string;
+    name: string | null;
+    email: string;
+  };
 }
 
 interface Stay {
@@ -62,21 +78,24 @@ interface Insurance {
 
 interface ItineraryViewProps {
   groupId: string;
+  currentUserId: string;
   initialData?: {
     itinerary?: ItineraryItem[];
     flights?: Flight[];
     stays?: Stay[];
     carRentals?: CarRental[];
     insurances?: Insurance[];
+    members?: any[];
   };
 }
 
-export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialData }) => {
+export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUserId, initialData }) => {
   const [days, setDays] = useState<GroupedDay[]>(initialData ? groupItemsByDate(initialData.itinerary) : []);
   const [flights, setFlights] = useState<Flight[]>(initialData?.flights || []);
   const [stays, setStays] = useState<Stay[]>(initialData?.stays || []);
   const [carRentals, setCarRentals] = useState<CarRental[]>(initialData?.carRentals || []);
   const [insurances, setInsurances] = useState<Insurance[]>(initialData?.insurances || []);
+  const [members, setMembers] = useState<any[]>(initialData?.members || []);
   const [isLoading, setIsLoading] = useState(!initialData);
   const [activeSection, setActiveSection] = useState<"days" | "logistics">("days");
   const [logisticsTab, setLogisticsTab] = useState<"all" | "flights" | "stays" | "rentals" | "insurances">("all");
@@ -91,6 +110,8 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
   const [isBoardingPassModalOpen, setIsBoardingPassModalOpen] = useState(false);
   const [viewingBoardingPassUrl, setViewingBoardingPassUrl] = useState<string | null>(null);
   const [selectedDayKey, setSelectedDayKey] = useState<string | null>(null);
+  const [isShareFlightModalOpen, setIsShareFlightModalOpen] = useState(false);
+  const [sharingFlightId, setSharingFlightId] = useState<string | null>(null);
 
   // Day form
   const [newDayDate, setNewDayDate] = useState("");
@@ -249,6 +270,21 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
         await fetchAll();
         setIsAddActivityModalOpen(false);
         setNewActivityTime(""); setNewActivityDesc(""); setNewActivityLoc(""); setNewActivityType("activity");
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const handleShareFlight = async (userId: string) => {
+    if (!sharingFlightId) return;
+    try {
+      const res = await apiFetch(`/api/flights/${sharingFlightId}/share`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+      if (res.ok) {
+        await fetchAll();
+        setIsShareFlightModalOpen(false);
       }
     } catch (err) { console.error(err); }
   };
@@ -553,6 +589,16 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
                       <div className="absolute top-4 right-4 flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all">
                         <button
                           onClick={() => {
+                            setSharingFlightId(flight.id);
+                            setIsShareFlightModalOpen(true);
+                          }}
+                          className="p-2 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl transition-all"
+                          title="Compartilhar"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => {
                             setEditingFlightId(flight.id);
                             setFNumber(flight.number || "");
                             setFAirline(flight.airline || "");
@@ -560,8 +606,9 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
                             setFArrTime(flight.arrivalTime ? new Date(flight.arrivalTime).toISOString().slice(0, 16) : "");
                             setFOrigin(flight.origin || "");
                             setFDest(flight.destination || "");
-                            setFBoardingPassUrl(flight.boardingPassUrl || "");
-                            setFIdentityDocUrl(flight.identityDocUrl || "");
+                            const myP = flight.passengers.find(p => p.userId === currentUserId);
+                            setFBoardingPassUrl(myP?.boardingPassUrl || "");
+                            setFIdentityDocUrl(myP?.identityDocUrl || "");
                             setIsRoundTrip(false);
                             setIsAddFlightModalOpen(true);
                           }}
@@ -596,30 +643,47 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
                           </div>
                         </div>
                       </div>
-                      {(flight.boardingPassUrl || flight.identityDocUrl) && (
-                        <div className="mt-6 pt-4 border-t border-gray-50 dark:border-gray-800 flex flex-col gap-2">
-                          {flight.boardingPassUrl && (
-                            <button
-                              onClick={() => {
-                                setViewingBoardingPassUrl(flight.boardingPassUrl!);
-                                setIsBoardingPassModalOpen(true);
-                              }}
-                              className="w-full py-3 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-2xl text-xs font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-all flex items-center justify-center gap-2 border border-emerald-100/50 dark:border-emerald-900/10"
-                            >
-                              <ShieldCheck className="w-4 h-4" /> Ver Cartão de Embarque
-                            </button>
-                          )}
-                          {flight.identityDocUrl && (
-                            <button
-                              onClick={() => {
-                                setViewingBoardingPassUrl(flight.identityDocUrl!);
-                                setIsBoardingPassModalOpen(true);
-                              }}
-                              className="w-full py-3 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-2xl text-xs font-bold hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-all flex items-center justify-center gap-2 border border-indigo-100/50 dark:border-indigo-900/10"
-                            >
-                              <CreditCard className="w-4 h-4" /> Ver Identidade (CNH/RG)
-                            </button>
-                          )}
+                      {(() => {
+                        const myP = flight.passengers.find(p => p.userId === currentUserId);
+                        if (!myP || (!myP.boardingPassUrl && !myP.identityDocUrl)) return null;
+                        return (
+                          <div className="mt-6 pt-4 border-t border-gray-50 dark:border-gray-800 flex flex-col gap-2">
+                            {myP.boardingPassUrl && (
+                              <button
+                                onClick={() => {
+                                  setViewingBoardingPassUrl(myP.boardingPassUrl!);
+                                  setIsBoardingPassModalOpen(true);
+                                }}
+                                className="w-full py-3 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-2xl text-xs font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-all flex items-center justify-center gap-2 border border-emerald-100/50 dark:border-emerald-900/10"
+                              >
+                                <ShieldCheck className="w-4 h-4" /> Ver MEU Cartão de Embarque
+                              </button>
+                            )}
+                            {myP.identityDocUrl && (
+                              <button
+                                onClick={() => {
+                                  setViewingBoardingPassUrl(myP.identityDocUrl!);
+                                  setIsBoardingPassModalOpen(true);
+                                }}
+                                className="w-full py-3 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-2xl text-xs font-bold hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-all flex items-center justify-center gap-2 border border-indigo-100/50 dark:border-indigo-900/10"
+                              >
+                                <CreditCard className="w-4 h-4" /> Ver MINHA Identidade (CNH/RG)
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })()}
+
+                      {flight.passengers.length > 1 && (
+                        <div className="mt-4 pt-3 flex items-center gap-2 border-t border-gray-50 dark:border-gray-800/50">
+                          <p className="text-[10px] font-bold text-gray-400 uppercase">Passageiros:</p>
+                          <div className="flex -space-x-2">
+                            {flight.passengers.map(p => (
+                              <div key={p.id} className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-800 border-2 border-white dark:border-gray-900 flex items-center justify-center text-[8px] font-bold text-gray-600 dark:text-gray-400" title={p.user?.name || p.user?.email}>
+                                {p.user?.name?.charAt(0) || p.user?.email?.charAt(0)}
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       )}
                     </motion.div>
@@ -829,7 +893,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
         {isAddDayModalOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsAddDayModalOpen(false)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-            <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="relative bg-white dark:bg-gray-900 w-full max-w-md rounded-3xl shadow-2xl p-8 transition-colors">
+            <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="relative bg-white dark:bg-gray-900 w-full max-w-md rounded-3xl shadow-2xl p-6 md:p-8 transition-colors">
               <div className="flex items-center justify-between mb-6"><h2 className="text-2xl font-bold text-gray-900 dark:text-white">Adicionar Dia</h2><button onClick={() => setIsAddDayModalOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"><X className="w-6 h-6 text-gray-400" /></button></div>
               <form onSubmit={handleAddDay} className="space-y-6">
                 <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Data</label><input type="date" value={newDayDate} onChange={(e) => setNewDayDate(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-colors" required /></div>
@@ -843,7 +907,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
         {isAddActivityModalOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsAddActivityModalOpen(false)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-            <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="relative bg-white dark:bg-gray-900 w-full max-w-md rounded-3xl shadow-2xl p-8 transition-colors">
+            <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="relative bg-white dark:bg-gray-900 w-full max-w-md rounded-3xl shadow-2xl p-6 md:p-8 transition-colors">
               <div className="flex items-center justify-between mb-6"><h2 className="text-2xl font-bold text-gray-900 dark:text-white">Nova Atividade</h2><button onClick={() => setIsAddActivityModalOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"><X className="w-6 h-6 text-gray-400" /></button></div>
               <form onSubmit={handleAddActivity} className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
@@ -868,7 +932,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
         {isAddFlightModalOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsAddFlightModalOpen(false)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-            <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="relative bg-white dark:bg-gray-900 w-full max-w-lg rounded-3xl shadow-2xl p-8 transition-colors max-h-[90vh] overflow-y-auto no-scrollbar">
+            <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="relative bg-white dark:bg-gray-900 w-full max-w-lg rounded-3xl shadow-2xl p-6 md:p-8 transition-colors max-h-[90vh] overflow-y-auto no-scrollbar">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 bg-indigo-50 dark:bg-indigo-900/30 rounded-xl">
@@ -894,7 +958,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
                     <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Origem</label><input type="text" value={fOrigin} onChange={(e) => setFOrigin(e.target.value)} placeholder="GRU" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm font-bold" /></div>
                     <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Destino</label><input type="text" value={fDest} onChange={(e) => setFDest(e.target.value)} placeholder="FLN" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm font-bold" /></div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Partida</label><input type="datetime-local" value={fDepTime} onChange={(e) => setFDepTime(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-xs" /></div>
                     <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Chegada</label><input type="datetime-local" value={fArrTime} onChange={(e) => setFArrTime(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-xs" /></div>
                   </div>
@@ -994,7 +1058,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
                         <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Origem</label><input type="text" value={fDest} readOnly className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-900 text-gray-500 outline-none text-sm font-bold cursor-not-allowed" /></div>
                         <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Destino</label><input type="text" value={fOrigin} readOnly className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-900 text-gray-500 outline-none text-sm font-bold cursor-not-allowed" /></div>
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Partida (Retorno)</label><input type="datetime-local" value={rDepTime} onChange={(e) => setRDepTime(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-xs" /></div>
                         <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Chegada (Retorno)</label><input type="datetime-local" value={rArrTime} onChange={(e) => setRArrTime(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-xs" /></div>
                       </div>
@@ -1067,7 +1131,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
         {isAddStayModalOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsAddStayModalOpen(false)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-            <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="relative bg-white dark:bg-gray-900 w-full max-w-md rounded-3xl shadow-2xl p-8 transition-colors">
+            <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="relative bg-white dark:bg-gray-900 w-full max-w-md rounded-3xl shadow-2xl p-6 md:p-8 transition-colors">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 bg-amber-50 dark:bg-amber-900/30 rounded-xl">
@@ -1082,7 +1146,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
               <form onSubmit={handleAddStay} className="space-y-4">
                 <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Nome do Hotel/Airbnb</label><input type="text" value={sName} onChange={(e) => setSName(e.target.value)} placeholder="Hotel Paradiso" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all" required /></div>
                 <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Endereço</label><input type="text" value={sAddress} onChange={(e) => setSAddress(e.target.value)} placeholder="Rua das Flores, 123" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all" /></div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Check-in</label><input type="date" value={sCheckIn} onChange={(e) => setSCheckIn(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none transition-all" /></div>
                   <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Check-out</label><input type="date" value={sCheckOut} onChange={(e) => setSCheckOut(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none transition-all" /></div>
                 </div>
@@ -1095,7 +1159,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
         {isAddRentalModalOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsAddRentalModalOpen(false)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-            <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="relative bg-white dark:bg-gray-900 w-full max-w-md rounded-3xl shadow-2xl p-8 transition-colors">
+            <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="relative bg-white dark:bg-gray-900 w-full max-w-md rounded-3xl shadow-2xl p-6 md:p-8 transition-colors">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 bg-blue-50 dark:bg-blue-900/30 rounded-xl">
@@ -1113,11 +1177,11 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
                   <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Modelo</label><input type="text" value={crModel} onChange={(e) => setCrModel(e.target.value)} placeholder="SUV, Sedã..." className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm" /></div>
                 </div>
                 <div className="space-y-4 p-4 bg-gray-50/50 dark:bg-gray-800/30 rounded-2xl border border-gray-100 dark:border-gray-800">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Local Retirada</label><input type="text" value={crPickupLoc} onChange={(e) => setCrPickupLoc(e.target.value)} placeholder="Aeroporto" className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none text-xs" /></div>
                     <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Data/Hora</label><input type="datetime-local" value={crPickupTime} onChange={(e) => setCrPickupTime(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none text-[10px]" /></div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4 border-t border-gray-100 dark:border-gray-800 pt-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-gray-100 dark:border-gray-800 pt-4">
                     <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Local Devolução</label><input type="text" value={crDropoffLoc} onChange={(e) => setCrDropoffLoc(e.target.value)} placeholder="Centro" className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none text-xs" /></div>
                     <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Data/Hora</label><input type="datetime-local" value={crDropoffTime} onChange={(e) => setCrDropoffTime(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none text-[10px]" /></div>
                   </div>
@@ -1132,7 +1196,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
         {isAddInsuranceModalOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsAddInsuranceModalOpen(false)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-            <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="relative bg-white dark:bg-gray-900 w-full max-w-md rounded-3xl shadow-2xl p-8 transition-colors">
+            <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="relative bg-white dark:bg-gray-900 w-full max-w-md rounded-3xl shadow-2xl p-6 md:p-8 transition-colors">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 bg-emerald-50 dark:bg-emerald-900/30 rounded-xl">
@@ -1147,7 +1211,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
               <form onSubmit={handleAddInsurance} className="space-y-4">
                 <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Seguradora / Provedor</label><input type="text" value={insProvider} onChange={(e) => setInsProvider(e.target.value)} placeholder="Assist Card, Allianz..." className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm" required /></div>
                 <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Número da Apólice</label><input type="text" value={insPolicy} onChange={(e) => setInsPolicy(e.target.value)} placeholder="123456789" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm" /></div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Início Cobertura</label><input type="date" value={insStart} onChange={(e) => setInsStart(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none text-xs" /></div>
                   <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Fim Cobertura</label><input type="date" value={insEnd} onChange={(e) => setInsEnd(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none text-xs" /></div>
                 </div>
@@ -1193,6 +1257,74 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
             </div>
           )}
         </AnimatePresence>
+      </AnimatePresence>
+
+      {/* Share Flight Modal */}
+      <AnimatePresence>
+        {isShareFlightModalOpen && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsShareFlightModalOpen(false)}
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative bg-white dark:bg-gray-900 w-full max-w-sm rounded-3xl shadow-2xl p-6 md:p-8 overflow-hidden transition-colors"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Compartilhar Voo</h2>
+                <button
+                  onClick={() => setIsShareFlightModalOpen(false)}
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors text-gray-400"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-3 max-h-[400px] overflow-y-auto no-scrollbar pr-2">
+                <p className="text-sm text-gray-500 mb-4">Escolha os membros do grupo que também estarão neste voo:</p>
+                {members.filter(m => m.id !== currentUserId).map(member => {
+                  const flight = flights.find(f => f.id === sharingFlightId);
+                  const isAlreadyPassenger = flight?.passengers.some(p => p.userId === member.id);
+
+                  return (
+                    <button
+                      key={member.id}
+                      onClick={() => !isAlreadyPassenger && handleShareFlight(member.id)}
+                      disabled={isAlreadyPassenger}
+                      className={cn(
+                        "w-full flex items-center justify-between p-4 rounded-2xl border transition-all",
+                        isAlreadyPassenger
+                          ? "bg-gray-50 border-transparent opacity-50 cursor-not-allowed"
+                          : "bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-800 hover:border-indigo-500 hover:shadow-lg group"
+                      )}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 font-bold uppercase">
+                          {member.name?.charAt(0) || member.email?.charAt(0)}
+                        </div>
+                        <div className="text-left">
+                          <p className="font-bold text-gray-900 dark:text-white text-sm">{member.name || member.email}</p>
+                          <p className="text-[10px] text-gray-500">{isAlreadyPassenger ? "Já adicionado" : "Clique para adicionar"}</p>
+                        </div>
+                      </div>
+                      {!isAlreadyPassenger && (
+                        <div className="bg-indigo-600 text-white p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Plus className="w-4 h-4" />
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </motion.div>
+          </div>
+        )}
       </AnimatePresence>
     </div>
   );

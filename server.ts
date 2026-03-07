@@ -371,7 +371,17 @@ async function startServer() {
       const [destinations, itinerary, flights, stays, expenses, group, carRentals, insurances] = await Promise.all([
         prisma.destination.findMany({ where: { groupId }, include: { votes: true } }),
         prisma.itineraryItem.findMany({ where: { groupId }, orderBy: [{ date: "asc" }, { time: "asc" }] }),
-        prisma.flight.findMany({ where: { groupId }, orderBy: { departureTime: "asc" } }),
+        prisma.flight.findMany({
+          where: {
+            groupId,
+            OR: [
+              { creatorId: (await prisma.user.findUnique({ where: { email: req.user.email } }))?.id },
+              { passengers: { some: { user: { email: req.user.email } } } }
+            ]
+          },
+          include: { passengers: true },
+          orderBy: { departureTime: "asc" }
+        }),
         prisma.stay.findMany({ where: { groupId }, orderBy: { checkIn: "asc" } }),
         prisma.expense.findMany({
           where: { groupId },
@@ -591,7 +601,18 @@ async function startServer() {
   app.get("/api/groups/:groupId/flights", authenticate, async (req: any, res) => {
     const { groupId } = req.params;
     try {
-      const flights = await prisma.flight.findMany({ where: { groupId }, orderBy: { departureTime: "asc" } });
+      const user = await prisma.user.findUnique({ where: { email: req.user.email } });
+      const flights = await prisma.flight.findMany({
+        where: {
+          groupId,
+          OR: [
+            { creatorId: user?.id },
+            { passengers: { some: { userId: user?.id } } }
+          ]
+        },
+        include: { passengers: true },
+        orderBy: { departureTime: "asc" }
+      });
       res.json(flights);
     } catch { res.status(500).json({ error: "Failed to fetch flights" }); }
   });
@@ -600,59 +621,121 @@ async function startServer() {
     const { groupId } = req.params;
     const { number, airline, departureTime, arrivalTime, origin, destination, isRoundTrip, returnFlight, boardingPassUrl, rBoardingPassUrl, identityDocUrl, rIdentityDocUrl } = req.body;
     try {
+      const user = await prisma.user.findUnique({ where: { email: req.user.email } });
+      if (!user) return res.status(401).json({ error: "User not found" });
+
       const flightsToCreate = [];
 
       // Voo de ida
-      flightsToCreate.push({
-        groupId,
-        number,
-        airline,
-        departureTime: departureTime ? new Date(departureTime) : null,
-        arrivalTime: arrivalTime ? new Date(arrivalTime) : null,
-        origin,
-        destination,
-        boardingPassUrl: boardingPassUrl || null,
-        identityDocUrl: identityDocUrl || null,
+      const flight1 = await prisma.flight.create({
+        data: {
+          groupId,
+          creatorId: user.id,
+          number,
+          airline,
+          departureTime: departureTime ? new Date(departureTime) : null,
+          arrivalTime: arrivalTime ? new Date(arrivalTime) : null,
+          origin,
+          destination,
+          passengers: {
+            create: {
+              userId: user.id,
+              boardingPassUrl: boardingPassUrl || null,
+              identityDocUrl: identityDocUrl || null,
+            }
+          }
+        },
+        include: { passengers: true }
       });
+      flightsToCreate.push(flight1);
 
       // Voo de volta opcional
       if (isRoundTrip && returnFlight) {
-        flightsToCreate.push({
-          groupId,
-          number: returnFlight.number,
-          airline: returnFlight.airline,
-          departureTime: returnFlight.departureTime ? new Date(returnFlight.departureTime) : null,
-          arrivalTime: returnFlight.arrivalTime ? new Date(returnFlight.arrivalTime) : null,
-          origin: returnFlight.origin,
-          destination: returnFlight.destination,
-          boardingPassUrl: rBoardingPassUrl || null,
-          identityDocUrl: rIdentityDocUrl || null,
+        const flight2 = await prisma.flight.create({
+          data: {
+            groupId,
+            creatorId: user.id,
+            number: returnFlight.number,
+            airline: returnFlight.airline,
+            departureTime: returnFlight.departureTime ? new Date(returnFlight.departureTime) : null,
+            arrivalTime: returnFlight.arrivalTime ? new Date(returnFlight.arrivalTime) : null,
+            origin: returnFlight.origin,
+            destination: returnFlight.destination,
+            passengers: {
+              create: {
+                userId: user.id,
+                boardingPassUrl: rBoardingPassUrl || null,
+                identityDocUrl: rIdentityDocUrl || null,
+              }
+            }
+          },
+          include: { passengers: true }
         });
+        flightsToCreate.push(flight2);
       }
 
-      const createdFlights = await Promise.all(
-        flightsToCreate.map(f => prisma.flight.create({ data: f }))
-      );
-
-      res.json(createdFlights);
+      res.json(flightsToCreate);
     } catch (err) {
       console.error("Error creating flight(s):", err);
       res.status(500).json({ error: "Failed to create flight(s)" });
     }
   });
 
-  app.patch("/api/flights/:flightId", authenticate, async (req, res) => {
+  app.post("/api/flights/:flightId/share", authenticate, async (req: any, res) => {
+    const { flightId } = req.params;
+    const { userId } = req.body;
+    try {
+      const passenger = await prisma.flightPassenger.create({
+        data: { flightId, userId }
+      });
+      res.json(passenger);
+    } catch { res.status(500).json({ error: "Failed to share flight" }); }
+  });
+
+  app.patch("/api/flights/passengers/:id", authenticate, async (req: any, res) => {
+    const { id } = req.params;
+    const { boardingPassUrl, identityDocUrl } = req.body;
+    try {
+      const updated = await prisma.flightPassenger.update({
+        where: { id },
+        data: { boardingPassUrl, identityDocUrl }
+      });
+      res.json(updated);
+    } catch { res.status(500).json({ error: "Failed to update passenger" }); }
+  });
+
+  app.patch("/api/flights/:flightId", authenticate, async (req: any, res) => {
     const { flightId } = req.params;
     const { number, airline, departureTime, arrivalTime, origin, destination, boardingPassUrl, identityDocUrl } = req.body;
+    const userId = req.user.id;
     try {
       const flight = await prisma.flight.update({
         where: { id: flightId },
         data: {
-          number, airline, origin, destination, boardingPassUrl, identityDocUrl,
+          number, airline, origin, destination,
           departureTime: departureTime ? new Date(departureTime) : null,
           arrivalTime: arrivalTime ? new Date(arrivalTime) : null
-        }
+        },
+        include: { passengers: { include: { user: true } } }
       });
+
+      // Atualiza documentos do passageiro atual se enviados
+      if (boardingPassUrl !== undefined || identityDocUrl !== undefined) {
+        await (prisma as any).flightPassenger.updateMany({
+          where: { flightId, userId },
+          data: {
+            ...(boardingPassUrl !== undefined && { boardingPassUrl }),
+            ...(identityDocUrl !== undefined && { identityDocUrl })
+          }
+        });
+
+        const updatedFlight = await prisma.flight.findUnique({
+          where: { id: flightId },
+          include: { passengers: { include: { user: true } } }
+        });
+        return res.json(updatedFlight);
+      }
+
       res.json(flight);
     } catch (err) { res.status(500).json({ error: "Failed to update flight" }); }
   });

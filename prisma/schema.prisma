@@ -9,100 +9,110 @@ datasource db {
 }
 
 model User {
-  id            String       @id @default(cuid())
-  name          String?
-  email         String       @unique
+  id                String            @id @default(cuid())
+  name              String?
+  email             String            @unique
   emailVerified     DateTime?
-  isVerified        Boolean      @default(false)
+  isVerified        Boolean           @default(false)
   verificationToken String?
-  password          String?      // Hash da senha para login por e-mail
-  googleId          String?      @unique // ID do Google para login social
-  image         String?
-  plan          String       @default("FREE") // FREE, PRO, PRO_ANNUAL
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-
-  memberships   Membership[]
-  ownedGroups   Group[]      @relation("GroupOwner")
-  expensesPaid  Expense[]    @relation("Payer")
-  splits        ExpenseSplit[]
-  votes         Vote[]
+  password          String?
+  googleId          String?           @unique
+  image             String?
+  plan              String            @default("FREE")
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  expensesPaid      Expense[]         @relation("Payer")
+  splits            ExpenseSplit[]
+  flights           Flight[]
+  flightPass        FlightPassenger[]
+  ownedGroups       Group[]           @relation("GroupOwner")
+  memberships       Membership[]
+  votes             Vote[]
 }
 
 model Group {
-  id          String       @id @default(cuid())
-  name        String
-  description String?
-  image       String?
-  type        String       @default("group") // solo, couple, group
-  inviteCode  String       @unique
-  ownerId     String
-  owner       User         @relation("GroupOwner", fields: [ownerId], references: [id])
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-
-  members      Membership[]
+  id           String          @id @default(cuid())
+  name         String
+  description  String?
+  image        String?
+  type         String          @default("group")
+  inviteCode   String          @unique
+  ownerId      String
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  carRentals   CarRental[]
   destinations Destination[]
-  itinerary    ItineraryItem[]
   expenses     Expense[]
   flights      Flight[]
-  stays        Stay[]
-  carRentals   CarRental[]
+  owner        User            @relation("GroupOwner", fields: [ownerId], references: [id])
   insurances   Insurance[]
+  itinerary    ItineraryItem[]
+  members      Membership[]
+  stays        Stay[]
 }
 
 model Membership {
-  id        String   @id @default(cuid())
-  userId    String
-  groupId   String
-  role      String   @default("MEMBER") // OWNER, ADMIN, MEMBER
-  joinedAt  DateTime @default(now())
-
-  user      User     @relation(fields: [userId], references: [id])
-  group     Group    @relation(fields: [groupId], references: [id])
+  id       String   @id @default(cuid())
+  userId   String
+  groupId  String
+  role     String   @default("MEMBER")
+  joinedAt DateTime @default(now())
+  group    Group    @relation(fields: [groupId], references: [id])
+  user     User     @relation(fields: [userId], references: [id])
 
   @@unique([userId, groupId])
 }
 
 model Destination {
-  id          String   @id @default(cuid())
+  id          String  @id @default(cuid())
   groupId     String
   name        String
   description String?
   image       String?
-  status      String   @default("SUGGESTED") // SUGGESTED, CONFIRMED
+  status      String  @default("SUGGESTED")
   suggestedBy String
-
-  group       Group    @relation(fields: [groupId], references: [id])
+  group       Group   @relation(fields: [groupId], references: [id])
   votes       Vote[]
 }
 
 model ItineraryItem {
-  id          String   @id @default(cuid())
-  groupId     String
-  title       String
-  time        String?
-  location    String?
-  date        DateTime
-  type        String   @default("activity") // day_header, transport, stay, food, activity, other
-
-  group       Group    @relation(fields: [groupId], references: [id])
+  id       String   @id @default(cuid())
+  groupId  String
+  title    String
+  time     String?
+  location String?
+  date     DateTime
+  type     String   @default("activity")
+  group    Group    @relation(fields: [groupId], references: [id])
 }
 
 model Flight {
-  id            String    @id @default(cuid())
+  id            String            @id @default(cuid())
   groupId       String
+  creatorId     String
   number        String?
   airline       String?
   departureTime DateTime?
   arrivalTime   DateTime?
   origin        String?
   destination   String?
+  createdAt     DateTime          @default(now())
+  creator       User              @relation(fields: [creatorId], references: [id])
+  group         Group             @relation(fields: [groupId], references: [id])
+  passengers    FlightPassenger[]
+}
+
+model FlightPassenger {
+  id              String   @id @default(cuid())
+  flightId        String
+  userId          String
   boardingPassUrl String?
   identityDocUrl  String?
-  createdAt     DateTime  @default(now())
+  createdAt       DateTime @default(now())
+  flight          Flight   @relation(fields: [flightId], references: [id], onDelete: Cascade)
+  user            User     @relation(fields: [userId], references: [id])
 
-  group         Group     @relation(fields: [groupId], references: [id])
+  @@unique([flightId, userId])
 }
 
 model Stay {
@@ -113,7 +123,6 @@ model Stay {
   checkIn   DateTime?
   checkOut  DateTime?
   createdAt DateTime  @default(now())
-
   group     Group     @relation(fields: [groupId], references: [id])
 }
 
@@ -121,10 +130,9 @@ model Vote {
   id            String      @id @default(cuid())
   userId        String
   destinationId String
-  value         Int         @default(1) // 1 for upvote, -1 for downvote
-
-  user          User        @relation(fields: [userId], references: [id])
+  value         Int         @default(1)
   destination   Destination @relation(fields: [destinationId], references: [id])
+  user          User        @relation(fields: [userId], references: [id])
 
   @@unique([userId, destinationId])
 }
@@ -137,22 +145,20 @@ model Expense {
   currency    String         @default("BRL")
   date        DateTime       @default(now())
   paidById    String
-
   group       Group          @relation(fields: [groupId], references: [id])
   paidBy      User           @relation("Payer", fields: [paidById], references: [id])
   splits      ExpenseSplit[]
 }
 
 model ExpenseSplit {
-  id        String   @id @default(cuid())
+  id        String  @id @default(cuid())
   expenseId String
   userId    String
   amount    Float
-  shares    Int      @default(1)
-  isPaid    Boolean  @default(false)
-
-  expense   Expense  @relation(fields: [expenseId], references: [id])
-  user      User     @relation(fields: [userId], references: [id])
+  shares    Int     @default(1)
+  isPaid    Boolean @default(false)
+  expense   Expense @relation(fields: [expenseId], references: [id])
+  user      User    @relation(fields: [userId], references: [id])
 
   @@unique([expenseId, userId])
 }
@@ -161,35 +167,33 @@ model PendingUser {
   id                String   @id @default(cuid())
   email             String   @unique
   name              String
-  password          String   // Hashed password
+  password          String
   verificationToken String
   createdAt         DateTime @default(now())
 }
 
 model CarRental {
-  id              String    @id @default(cuid())
-  groupId         String
-  company         String
-  model           String?
-  pickupLocation  String?
-  pickupTime      DateTime?
-  dropoffLocation String?
-  dropoffTime     DateTime?
+  id               String    @id @default(cuid())
+  groupId          String
+  company          String
+  model            String?
+  pickupLocation   String?
+  pickupTime       DateTime?
+  dropoffLocation  String?
+  dropoffTime      DateTime?
   confirmationCode String?
-  createdAt       DateTime  @default(now())
-
-  group           Group     @relation(fields: [groupId], references: [id])
+  createdAt        DateTime  @default(now())
+  group            Group     @relation(fields: [groupId], references: [id])
 }
 
 model Insurance {
-  id              String    @id @default(cuid())
-  groupId         String
-  provider        String
-  policyNumber    String?
-  startDate       DateTime?
-  endDate         DateTime?
-  contactInfo     String?
-  createdAt       DateTime  @default(now())
-
-  group           Group     @relation(fields: [groupId], references: [id])
+  id           String    @id @default(cuid())
+  groupId      String
+  provider     String
+  policyNumber String?
+  startDate    DateTime?
+  endDate      DateTime?
+  contactInfo  String?
+  createdAt    DateTime  @default(now())
+  group        Group     @relation(fields: [groupId], references: [id])
 }
