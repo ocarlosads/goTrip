@@ -99,6 +99,7 @@ model Flight {
   origin        String?
   destination   String?
   boardingPassUrl String?
+  identityDocUrl  String?
   createdAt     DateTime  @default(now())
 
   group         Group     @relation(fields: [groupId], references: [id])

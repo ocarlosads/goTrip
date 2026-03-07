@@ -598,7 +598,7 @@ async function startServer() {
 
   app.post("/api/groups/:groupId/flights", authenticate, async (req: any, res) => {
     const { groupId } = req.params;
-    const { number, airline, departureTime, arrivalTime, origin, destination, isRoundTrip, returnFlight, boardingPassUrl, rBoardingPassUrl } = req.body;
+    const { number, airline, departureTime, arrivalTime, origin, destination, isRoundTrip, returnFlight, boardingPassUrl, rBoardingPassUrl, identityDocUrl, rIdentityDocUrl } = req.body;
     try {
       const flightsToCreate = [];
 
@@ -612,6 +612,7 @@ async function startServer() {
         origin,
         destination,
         boardingPassUrl: boardingPassUrl || null,
+        identityDocUrl: identityDocUrl || null,
       });
 
       // Voo de volta opcional
@@ -625,6 +626,7 @@ async function startServer() {
           origin: returnFlight.origin,
           destination: returnFlight.destination,
           boardingPassUrl: rBoardingPassUrl || null,
+          identityDocUrl: rIdentityDocUrl || null,
         });
       }
 

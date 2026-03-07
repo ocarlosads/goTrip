@@ -29,6 +29,7 @@ interface Flight {
   origin: string | null;
   destination: string | null;
   boardingPassUrl?: string | null;
+  identityDocUrl?: string | null;
 }
 
 interface Stay {
@@ -115,6 +116,8 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
   const [rArrTime, setRArrTime] = useState("");
   const [fBoardingPassUrl, setFBoardingPassUrl] = useState("");
   const [rBoardingPassUrl, setRBoardingPassUrl] = useState("");
+  const [fIdentityDocUrl, setFIdentityDocUrl] = useState("");
+  const [rIdentityDocUrl, setRIdentityDocUrl] = useState("");
   const [isUploading, setIsUploading] = useState(false);
 
   const handleFileUpload = async (file: File): Promise<string> => {
@@ -267,7 +270,9 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
         number: fNumber, airline: fAirline, departureTime: fDepTime, arrivalTime: fArrTime, origin: fOrigin, destination: fDest,
         isRoundTrip,
         boardingPassUrl: fBoardingPassUrl,
-        rBoardingPassUrl: rBoardingPassUrl
+        rBoardingPassUrl: rBoardingPassUrl,
+        identityDocUrl: fIdentityDocUrl,
+        rIdentityDocUrl: rIdentityDocUrl
       };
 
       if (isRoundTrip) {
@@ -292,6 +297,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
         setIsAddFlightModalOpen(false);
         setFNumber(""); setFAirline(""); setFDepTime(""); setFArrTime(""); setFOrigin(""); setFDest("");
         setIsRoundTrip(false); setRNumber(""); setRAirline(""); setRDepTime(""); setRArrTime("");
+        setFBoardingPassUrl(""); setRBoardingPassUrl(""); setFIdentityDocUrl(""); setRIdentityDocUrl("");
       }
     } catch (err) { console.error(err); }
   };
@@ -543,17 +549,30 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
                           </div>
                         </div>
                       </div>
-                      {flight.boardingPassUrl && (
-                        <div className="mt-6 pt-4 border-t border-gray-50 dark:border-gray-800 flex justify-center">
-                          <button
-                            onClick={() => {
-                              setViewingBoardingPassUrl(flight.boardingPassUrl!);
-                              setIsBoardingPassModalOpen(true);
-                            }}
-                            className="w-full py-3 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-2xl text-xs font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-all flex items-center justify-center gap-2 border border-emerald-100/50 dark:border-emerald-900/10"
-                          >
-                            <ShieldCheck className="w-4 h-4" /> Ver Cartão de Embarque
-                          </button>
+                      {(flight.boardingPassUrl || flight.identityDocUrl) && (
+                        <div className="mt-6 pt-4 border-t border-gray-50 dark:border-gray-800 flex flex-col gap-2">
+                          {flight.boardingPassUrl && (
+                            <button
+                              onClick={() => {
+                                setViewingBoardingPassUrl(flight.boardingPassUrl!);
+                                setIsBoardingPassModalOpen(true);
+                              }}
+                              className="w-full py-3 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-2xl text-xs font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-all flex items-center justify-center gap-2 border border-emerald-100/50 dark:border-emerald-900/10"
+                            >
+                              <ShieldCheck className="w-4 h-4" /> Ver Cartão de Embarque
+                            </button>
+                          )}
+                          {flight.identityDocUrl && (
+                            <button
+                              onClick={() => {
+                                setViewingBoardingPassUrl(flight.identityDocUrl!);
+                                setIsBoardingPassModalOpen(true);
+                              }}
+                              className="w-full py-3 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-2xl text-xs font-bold hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-all flex items-center justify-center gap-2 border border-indigo-100/50 dark:border-indigo-900/10"
+                            >
+                              <CreditCard className="w-4 h-4" /> Ver Identidade (CNH/RG)
+                            </button>
+                          )}
                         </div>
                       )}
                     </motion.div>
@@ -783,9 +802,9 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
                     <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Partida</label><input type="datetime-local" value={fDepTime} onChange={(e) => setFDepTime(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-xs" /></div>
                     <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Chegada</label><input type="datetime-local" value={fArrTime} onChange={(e) => setFArrTime(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-xs" /></div>
                   </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Arquivo do Cartão de Embarque (PDF ou Imagem)</label>
-                    <div className="relative">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Cartão de Embarque</label>
                       <input
                         type="file"
                         accept=".pdf,image/*"
@@ -803,10 +822,34 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
                             }
                           }
                         }}
-                        className="w-full px-4 py-2 text-xs text-gray-500 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                        className="w-full px-3 py-2 text-[10px] text-gray-500 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-[9px] file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
                         disabled={isUploading}
                       />
-                      {fBoardingPassUrl && <p className="text-[10px] text-emerald-600 mt-1 flex items-center gap-1"><ShieldCheck className="w-3 h-3" /> Arquivo pronto para salvar</p>}
+                      {fBoardingPassUrl && <p className="text-[9px] text-emerald-600 mt-0.5 flex items-center gap-1"><ShieldCheck className="w-2.5 h-2.5" /> OK</p>}
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Identidade (CNH/RG)</label>
+                      <input
+                        type="file"
+                        accept=".pdf,image/*"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setIsUploading(true);
+                            try {
+                              const url = await handleFileUpload(file);
+                              setFIdentityDocUrl(url);
+                            } catch (err: any) {
+                              alert("Erro no upload: " + err.message);
+                            } finally {
+                              setIsUploading(false);
+                            }
+                          }
+                        }}
+                        className="w-full px-3 py-2 text-[10px] text-gray-500 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-[9px] file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                        disabled={isUploading}
+                      />
+                      {fIdentityDocUrl && <p className="text-[9px] text-emerald-600 mt-0.5 flex items-center gap-1"><ShieldCheck className="w-2.5 h-2.5" /> OK</p>}
                     </div>
                   </div>
                 </div>
@@ -859,9 +902,9 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
                         <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Partida (Retorno)</label><input type="datetime-local" value={rDepTime} onChange={(e) => setRDepTime(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-xs" /></div>
                         <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Chegada (Retorno)</label><input type="datetime-local" value={rArrTime} onChange={(e) => setRArrTime(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-xs" /></div>
                       </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Arquivo do Cartão de Volta</label>
-                        <div className="relative">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Cartão de Volta</label>
                           <input
                             type="file"
                             accept=".pdf,image/*"
@@ -879,10 +922,34 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, initialDa
                                 }
                               }
                             }}
-                            className="w-full px-4 py-2 text-xs text-gray-500 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                            className="w-full px-3 py-2 text-[10px] text-gray-500 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-[9px] file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
                             disabled={isUploading}
                           />
-                          {rBoardingPassUrl && <p className="text-[10px] text-emerald-600 mt-1 flex items-center gap-1"><ShieldCheck className="w-3 h-3" /> Arquivo pronto para salvar</p>}
+                          {rBoardingPassUrl && <p className="text-[9px] text-emerald-600 mt-0.5 flex items-center gap-1"><ShieldCheck className="w-2.5 h-2.5" /> OK</p>}
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Identidade Volta</label>
+                          <input
+                            type="file"
+                            accept=".pdf,image/*"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                setIsUploading(true);
+                                try {
+                                  const url = await handleFileUpload(file);
+                                  setRIdentityDocUrl(url);
+                                } catch (err: any) {
+                                  alert("Erro no upload: " + err.message);
+                                } finally {
+                                  setIsUploading(false);
+                                }
+                              }
+                            }}
+                            className="w-full px-3 py-2 text-[10px] text-gray-500 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-[9px] file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                            disabled={isUploading}
+                          />
+                          {rIdentityDocUrl && <p className="text-[9px] text-emerald-600 mt-0.5 flex items-center gap-1"><ShieldCheck className="w-2.5 h-2.5" /> OK</p>}
                         </div>
                       </div>
                     </motion.div>
