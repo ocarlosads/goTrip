@@ -236,6 +236,29 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
   const [editingRentalId, setEditingRentalId] = useState<string | null>(null);
   const [editingInsuranceId, setEditingInsuranceId] = useState<string | null>(null);
 
+  // -- Date formatters for inputs --
+  const formatDateInput = (dateStr?: string | Date | null) => {
+    if (!dateStr) return "";
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "";
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  const formatDateTimeInput = (dateStr?: string | Date | null) => {
+    if (!dateStr) return "";
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "";
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
+  };
+
   const fetchAll = async () => {
     try {
       const res = await apiFetch(`/api/groups/${groupId}/data`);
@@ -935,8 +958,8 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                             setSLat(stay.lat);
                             setSLng(stay.lng);
                             setSPlaceId(stay.googlePlaceId);
-                            setSCheckIn(stay.checkIn ? String(stay.checkIn).slice(0, 10) : "");
-                            setSCheckOut(stay.checkOut ? String(stay.checkOut).slice(0, 10) : "");
+                            setSCheckIn(formatDateInput(stay.checkIn));
+                            setSCheckOut(formatDateInput(stay.checkOut));
                             setIsAddStayModalOpen(true);
                           }}
                           className="p-2 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl transition-all"
@@ -962,41 +985,6 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                             </a>
                           )}
 
-                          <div className="mt-3">
-                            {stay.bookingVoucherUrl ? (
-                              <button
-                                onClick={() => { setViewingBoardingPassUrl(stay.bookingVoucherUrl || ""); setIsBoardingPassModalOpen(true); }}
-                                className="w-full flex items-center justify-center gap-2 p-2.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-xl hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors border border-emerald-200 dark:border-emerald-800"
-                              >
-                                <ShieldCheck className="w-4 h-4" />
-                                <span className="text-xs font-bold">Ver Comprovante</span>
-                              </button>
-                            ) : (
-                              <label className="w-full flex items-center justify-center gap-2 p-2.5 bg-gray-50 dark:bg-gray-800/30 text-gray-400 dark:text-gray-500 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors border border-dashed border-gray-200 dark:border-gray-700 cursor-pointer">
-                                <Plus className="w-4 h-4" />
-                                <span className="text-xs font-bold">Anexar Comprovante</span>
-                                <input
-                                  type="file"
-                                  className="hidden"
-                                  accept=".pdf,image/*"
-                                  onChange={async (e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) {
-                                      try {
-                                        const url = await handleFileUpload(file);
-                                        await apiFetch(`/api/stays/${stay.id}`, {
-                                          method: "PATCH",
-                                          headers: { "Content-Type": "application/json" },
-                                          body: JSON.stringify({ bookingVoucherUrl: url }),
-                                        });
-                                        await fetchAll();
-                                      } catch (err) { console.error(err); }
-                                    }
-                                  }}
-                                />
-                              </label>
-                            )}
-                          </div>
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-50 dark:border-gray-800">
@@ -1037,6 +1025,42 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                           )}
                         </div>
                       </div>
+
+                      <div className="mt-4">
+                        {stay.bookingVoucherUrl ? (
+                          <button
+                            onClick={() => { setViewingBoardingPassUrl(stay.bookingVoucherUrl || ""); setIsBoardingPassModalOpen(true); }}
+                            className="w-full flex items-center justify-center gap-2 p-3 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-xl hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors border border-emerald-200 dark:border-emerald-800"
+                          >
+                            <ShieldCheck className="w-4 h-4" />
+                            <span className="text-sm font-bold">Ver Comprovante</span>
+                          </button>
+                        ) : (
+                          <label className="w-full flex items-center justify-center gap-2 p-3 bg-gray-50 dark:bg-gray-800/30 text-gray-400 dark:text-gray-500 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors border border-dashed border-gray-200 dark:border-gray-700 cursor-pointer">
+                            <Plus className="w-4 h-4" />
+                            <span className="text-sm font-bold">Anexar Comprovante</span>
+                            <input
+                              type="file"
+                              className="hidden"
+                              accept=".pdf,image/*"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  try {
+                                    const url = await handleFileUpload(file);
+                                    await apiFetch(`/api/stays/${stay.id}`, {
+                                      method: "PATCH",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({ bookingVoucherUrl: url }),
+                                    });
+                                    await fetchAll();
+                                  } catch (err) { console.error(err); }
+                                }
+                              }}
+                            />
+                          </label>
+                        )}
+                      </div>
                     </motion.div>
                   ))}
                   {stays.length === 0 && logisticsTab === "stays" && (
@@ -1066,9 +1090,9 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                             setCrCompany(rental.company);
                             setCrModel(rental.model || "");
                             setCrPickupLoc(rental.pickupLocation || "");
-                            setCrPickupTime(rental.pickupTime ? String(rental.pickupTime).slice(0, 16) : "");
+                            setCrPickupTime(formatDateTimeInput(rental.pickupTime));
                             setCrDropoffLoc(rental.dropoffLocation || "");
-                            setCrDropoffTime(rental.dropoffTime ? String(rental.dropoffTime).slice(0, 16) : "");
+                            setCrDropoffTime(formatDateTimeInput(rental.dropoffTime));
                             setCrCode(rental.confirmationCode || "");
                             setIsAddRentalModalOpen(true);
                           }}
@@ -1086,54 +1110,6 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                           <h4 className="font-bold text-gray-900 dark:text-white truncate">{rental.company}</h4>
                           <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{rental.model || "Modelo não informado"}</p>
 
-                          <div className="mt-1.5 flex flex-wrap items-center gap-3">
-                            {rental.pickupLocation && (
-                              <a
-                                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(rental.pickupLocation)}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 font-bold w-fit"
-                              >
-                                <Navigation className="w-2.5 h-2.5" /> Ver no Maps
-                              </a>
-                            )}
-
-                            {rental.bookingVoucherUrl ? (
-                              <button
-                                onClick={() => { setViewingBoardingPassUrl(rental.bookingVoucherUrl || ""); setIsBoardingPassModalOpen(true); }}
-                                className="text-[10px] text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 font-bold whitespace-nowrap"
-                              >
-                                <ShieldCheck className="w-3.5 h-3.5" /> Ver Comprovante
-                              </button>
-                            ) : (
-                              <label className="text-[10px] text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1 cursor-pointer hover:underline whitespace-nowrap">
-                                <Plus className="w-3.5 h-3.5" /> Anexar Comprovante
-                                <input
-                                  type="file"
-                                  className="hidden"
-                                  accept=".pdf,image/*"
-                                  onChange={async (e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) {
-                                      try {
-                                        const url = await handleFileUpload(file);
-                                        await apiFetch(`/api/rentals/${rental.id}`, {
-                                          method: "PATCH",
-                                          headers: { "Content-Type": "application/json" },
-                                          body: JSON.stringify({ bookingVoucherUrl: url }),
-                                        });
-                                        await fetchAll();
-                                        showToast("Comprovante anexado!", "success");
-                                      } catch (err) {
-                                        console.error(err);
-                                        showToast("Erro ao anexar comprovante", "error");
-                                      }
-                                    }
-                                  }}
-                                />
-                              </label>
-                            )}
-                          </div>
                           {rental.confirmationCode && (
                             <span className="inline-flex items-center gap-1.5 mt-2 px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-[10px] font-bold text-gray-600 dark:text-gray-400 rounded-md">
                               <CreditCard className="w-3 h-3" /> {rental.confirmationCode}
@@ -1195,6 +1171,46 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                           )}
                         </div>
                       </div >
+
+                      <div className="mt-4">
+                        {rental.bookingVoucherUrl ? (
+                          <button
+                            onClick={() => { setViewingBoardingPassUrl(rental.bookingVoucherUrl || ""); setIsBoardingPassModalOpen(true); }}
+                            className="w-full flex items-center justify-center gap-2 p-3 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-xl hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors border border-emerald-200 dark:border-emerald-800"
+                          >
+                            <ShieldCheck className="w-4 h-4" />
+                            <span className="text-sm font-bold">Ver Comprovante</span>
+                          </button>
+                        ) : (
+                          <label className="w-full flex items-center justify-center gap-2 p-3 bg-gray-50 dark:bg-gray-800/30 text-gray-400 dark:text-gray-500 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors border border-dashed border-gray-200 dark:border-gray-700 cursor-pointer">
+                            <Plus className="w-4 h-4" />
+                            <span className="text-sm font-bold">Anexar Comprovante</span>
+                            <input
+                              type="file"
+                              className="hidden"
+                              accept=".pdf,image/*"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  try {
+                                    const url = await handleFileUpload(file);
+                                    await apiFetch(`/api/rentals/${rental.id}`, {
+                                      method: "PATCH",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({ bookingVoucherUrl: url }),
+                                    });
+                                    await fetchAll();
+                                    showToast("Comprovante anexado!", "success");
+                                  } catch (err) {
+                                    console.error(err);
+                                    showToast("Erro ao anexar comprovante", "error");
+                                  }
+                                }
+                              }}
+                            />
+                          </label>
+                        )}
+                      </div>
                     </motion.div >
                   ))}
                   {
