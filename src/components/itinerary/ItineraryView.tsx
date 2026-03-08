@@ -1051,7 +1051,16 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                                     await apiFetch(`/api/stays/${stay.id}`, {
                                       method: "PATCH",
                                       headers: { "Content-Type": "application/json" },
-                                      body: JSON.stringify({ bookingVoucherUrl: url }),
+                                      body: JSON.stringify({
+                                        name: stay.name,
+                                        address: stay.address,
+                                        lat: stay.lat,
+                                        lng: stay.lng,
+                                        googlePlaceId: stay.googlePlaceId,
+                                        checkIn: stay.checkIn,
+                                        checkOut: stay.checkOut,
+                                        bookingVoucherUrl: url
+                                      }),
                                     });
                                     await fetchAll();
                                   } catch (err) { console.error(err); }
@@ -1061,6 +1070,21 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                           </label>
                         )}
                       </div>
+
+                      {stay.address && (
+                        <div className="mt-3 bg-gray-50/50 dark:bg-gray-800/30 p-3 rounded-2xl">
+                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Localização</p>
+                          <a
+                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(stay.address)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline flex items-start gap-1 font-medium leading-tight"
+                          >
+                            <Navigation className="w-4 h-4 mt-0.5 shrink-0" />
+                            {stay.address}
+                          </a>
+                        </div>
+                      )}
                     </motion.div>
                   ))}
                   {stays.length === 0 && logisticsTab === "stays" && (
@@ -1197,7 +1221,16 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                                     await apiFetch(`/api/rentals/${rental.id}`, {
                                       method: "PATCH",
                                       headers: { "Content-Type": "application/json" },
-                                      body: JSON.stringify({ bookingVoucherUrl: url }),
+                                      body: JSON.stringify({
+                                        company: rental.company,
+                                        model: rental.model,
+                                        pickupLocation: rental.pickupLocation,
+                                        pickupTime: rental.pickupTime,
+                                        dropoffLocation: rental.dropoffLocation,
+                                        dropoffTime: rental.dropoffTime,
+                                        confirmationCode: rental.confirmationCode,
+                                        bookingVoucherUrl: url
+                                      }),
                                     });
                                     await fetchAll();
                                     showToast("Comprovante anexado!", "success");

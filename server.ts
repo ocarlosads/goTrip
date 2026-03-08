@@ -803,13 +803,19 @@ async function startServer() {
     const { stayId } = req.params;
     const { name, address, lat, lng, googlePlaceId, checkIn, checkOut, bookingVoucherUrl } = req.body;
     try {
+      const dataToUpdate: any = {};
+      if (name !== undefined) dataToUpdate.name = name;
+      if (address !== undefined) dataToUpdate.address = address;
+      if (lat !== undefined) dataToUpdate.lat = lat;
+      if (lng !== undefined) dataToUpdate.lng = lng;
+      if (googlePlaceId !== undefined) dataToUpdate.googlePlaceId = googlePlaceId;
+      if (bookingVoucherUrl !== undefined) dataToUpdate.bookingVoucherUrl = bookingVoucherUrl;
+      if (checkIn !== undefined) dataToUpdate.checkIn = checkIn ? new Date(checkIn) : null;
+      if (checkOut !== undefined) dataToUpdate.checkOut = checkOut ? new Date(checkOut) : null;
+
       const stay = await prisma.stay.update({
         where: { id: stayId },
-        data: {
-          name, address, bookingVoucherUrl,
-          checkIn: checkIn ? new Date(checkIn) : null,
-          checkOut: checkOut ? new Date(checkOut) : null
-        },
+        data: dataToUpdate,
         include: { members: { include: { user: true } } }
       });
       res.json(stay);
@@ -866,13 +872,19 @@ async function startServer() {
     const { id } = req.params;
     const { company, model, pickupLocation, pickupTime, dropoffLocation, dropoffTime, confirmationCode, bookingVoucherUrl } = req.body;
     try {
+      const dataToUpdate: any = {};
+      if (company !== undefined) dataToUpdate.company = company;
+      if (model !== undefined) dataToUpdate.model = model;
+      if (pickupLocation !== undefined) dataToUpdate.pickupLocation = pickupLocation;
+      if (dropoffLocation !== undefined) dataToUpdate.dropoffLocation = dropoffLocation;
+      if (confirmationCode !== undefined) dataToUpdate.confirmationCode = confirmationCode;
+      if (bookingVoucherUrl !== undefined) dataToUpdate.bookingVoucherUrl = bookingVoucherUrl;
+      if (pickupTime !== undefined) dataToUpdate.pickupTime = pickupTime ? new Date(pickupTime) : null;
+      if (dropoffTime !== undefined) dataToUpdate.dropoffTime = dropoffTime ? new Date(dropoffTime) : null;
+
       const rental = await prisma.carRental.update({
         where: { id },
-        data: {
-          company, model, pickupLocation, dropoffLocation, confirmationCode, bookingVoucherUrl,
-          pickupTime: pickupTime ? new Date(pickupTime) : null,
-          dropoffTime: dropoffTime ? new Date(dropoffTime) : null
-        },
+        data: dataToUpdate,
         include: { members: { include: { user: true } } }
       });
       res.json(rental);
