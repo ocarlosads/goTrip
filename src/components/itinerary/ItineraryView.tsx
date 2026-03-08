@@ -935,8 +935,8 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                             setSLat(stay.lat);
                             setSLng(stay.lng);
                             setSPlaceId(stay.googlePlaceId);
-                            setSCheckIn(stay.checkIn ? new Date(stay.checkIn).toISOString().split('T')[0] : "");
-                            setSCheckOut(stay.checkOut ? new Date(stay.checkOut).toISOString().split('T')[0] : "");
+                            setSCheckIn(stay.checkIn ? String(stay.checkIn).slice(0, 10) : "");
+                            setSCheckOut(stay.checkOut ? String(stay.checkOut).slice(0, 10) : "");
                             setIsAddStayModalOpen(true);
                           }}
                           className="p-2 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl transition-all"
@@ -952,49 +952,51 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                         <div className="flex-1">
                           <h4 className="font-bold text-gray-900 dark:text-white">{stay.name}</h4>
                           {stay.address && (
-                            <div className="mt-1 flex flex-wrap items-center gap-3">
-                              <a
-                                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(stay.address)}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 font-bold w-fit"
-                              >
-                                <Navigation className="w-2.5 h-2.5" /> Ver no Maps
-                              </a>
-
-                              {stay.bookingVoucherUrl ? (
-                                <button
-                                  onClick={() => { setViewingBoardingPassUrl(stay.bookingVoucherUrl || ""); setIsBoardingPassModalOpen(true); }}
-                                  className="text-[10px] text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 font-bold"
-                                >
-                                  <ShieldCheck className="w-2.5 h-2.5" /> Ver Comprovante
-                                </button>
-                              ) : (
-                                <label className="text-[10px] text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1 cursor-pointer hover:underline">
-                                  <Plus className="w-3 h-3" /> Anexar Comprovante
-                                  <input
-                                    type="file"
-                                    className="hidden"
-                                    accept=".pdf,image/*"
-                                    onChange={async (e) => {
-                                      const file = e.target.files?.[0];
-                                      if (file) {
-                                        try {
-                                          const url = await handleFileUpload(file);
-                                          await apiFetch(`/api/stays/${stay.id}`, {
-                                            method: "PATCH",
-                                            headers: { "Content-Type": "application/json" },
-                                            body: JSON.stringify({ bookingVoucherUrl: url }),
-                                          });
-                                          await fetchAll();
-                                        } catch (err) { console.error(err); }
-                                      }
-                                    }}
-                                  />
-                                </label>
-                              )}
-                            </div>
+                            <a
+                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(stay.address)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="mt-1 text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 font-bold w-fit"
+                            >
+                              <Navigation className="w-2.5 h-2.5" /> Ver no Maps
+                            </a>
                           )}
+
+                          <div className="mt-3">
+                            {stay.bookingVoucherUrl ? (
+                              <button
+                                onClick={() => { setViewingBoardingPassUrl(stay.bookingVoucherUrl || ""); setIsBoardingPassModalOpen(true); }}
+                                className="w-full flex items-center justify-center gap-2 p-2.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-xl hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors border border-emerald-200 dark:border-emerald-800"
+                              >
+                                <ShieldCheck className="w-4 h-4" />
+                                <span className="text-xs font-bold">Ver Comprovante</span>
+                              </button>
+                            ) : (
+                              <label className="w-full flex items-center justify-center gap-2 p-2.5 bg-gray-50 dark:bg-gray-800/30 text-gray-400 dark:text-gray-500 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors border border-dashed border-gray-200 dark:border-gray-700 cursor-pointer">
+                                <Plus className="w-4 h-4" />
+                                <span className="text-xs font-bold">Anexar Comprovante</span>
+                                <input
+                                  type="file"
+                                  className="hidden"
+                                  accept=".pdf,image/*"
+                                  onChange={async (e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                      try {
+                                        const url = await handleFileUpload(file);
+                                        await apiFetch(`/api/stays/${stay.id}`, {
+                                          method: "PATCH",
+                                          headers: { "Content-Type": "application/json" },
+                                          body: JSON.stringify({ bookingVoucherUrl: url }),
+                                        });
+                                        await fetchAll();
+                                      } catch (err) { console.error(err); }
+                                    }
+                                  }}
+                                />
+                              </label>
+                            )}
+                          </div>
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-50 dark:border-gray-800">
@@ -1064,9 +1066,9 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                             setCrCompany(rental.company);
                             setCrModel(rental.model || "");
                             setCrPickupLoc(rental.pickupLocation || "");
-                            setCrPickupTime(rental.pickupTime ? new Date(rental.pickupTime).toISOString().slice(0, 16) : "");
+                            setCrPickupTime(rental.pickupTime ? String(rental.pickupTime).slice(0, 16) : "");
                             setCrDropoffLoc(rental.dropoffLocation || "");
-                            setCrDropoffTime(rental.dropoffTime ? new Date(rental.dropoffTime).toISOString().slice(0, 16) : "");
+                            setCrDropoffTime(rental.dropoffTime ? String(rental.dropoffTime).slice(0, 16) : "");
                             setCrCode(rental.confirmationCode || "");
                             setIsAddRentalModalOpen(true);
                           }}
@@ -1488,7 +1490,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                   <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Nome da Hospedagem</label><input type="text" value={sName} onChange={(e) => setSName(e.target.value)} placeholder="Ex: Hotel Paradiso ou Airbnb" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium" required /></div>
                   <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Localização / Endereço</label><input type="text" value={sAddress} onChange={(e) => setSAddress(e.target.value)} placeholder="Rua, Cidade ou link do Google Maps" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium" /></div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Check-in</label><input type="date" value={sCheckIn} onChange={(e) => setSCheckIn(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all" /></div>
                   <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Check-out</label><input type="date" value={sCheckOut} onChange={(e) => setSCheckOut(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all" /></div>
                 </div>
@@ -1565,7 +1567,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                 </button>
               </div>
               <form onSubmit={handleAddRental} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Locadora</label><input type="text" value={crCompany} onChange={(e) => setCrCompany(e.target.value)} placeholder="Hertz, Avis..." className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm" required /></div>
                   <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Modelo</label><input type="text" value={crModel} onChange={(e) => setCrModel(e.target.value)} placeholder="SUV, Sedã..." className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm" /></div>
                 </div>
