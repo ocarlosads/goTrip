@@ -960,6 +960,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                             setSPlaceId(stay.googlePlaceId);
                             setSCheckIn(formatDateInput(stay.checkIn));
                             setSCheckOut(formatDateInput(stay.checkOut));
+                            setSVoucherUrl(stay.bookingVoucherUrl || "");
                             setIsAddStayModalOpen(true);
                           }}
                           className="p-2 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl transition-all"
@@ -1106,6 +1107,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                             setCrDropoffLoc(rental.dropoffLocation || "");
                             setCrDropoffTime(formatDateTimeInput(rental.dropoffTime));
                             setCrCode(rental.confirmationCode || "");
+                            setCrVoucherUrl(rental.bookingVoucherUrl || "");
                             setIsAddRentalModalOpen(true);
                           }}
                           className="p-2 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl transition-all"
@@ -1534,46 +1536,74 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
 
                 <div className="pt-2 border-t border-gray-100 dark:border-gray-800">
                   <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Comprovante de Reserva (Opcional)</label>
-                  <label className={cn(
-                    "flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-2xl cursor-pointer transition-all",
-                    sVoucherUrl ? "border-emerald-500 bg-emerald-50/30 dark:bg-emerald-900/10" : "border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50"
-                  )}>
-                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                      {sIsUploading ? (
-                        <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
-                      ) : sVoucherUrl ? (
-                        <>
-                          <ShieldCheck className="w-6 h-6 text-emerald-500 mb-2" />
-                          <p className="text-xs text-emerald-600 font-bold uppercase">Cadastrado</p>
-                        </>
-                      ) : (
-                        <>
-                          <Plus className="w-6 h-6 text-gray-400 mb-1" />
-                          <p className="text-[10px] text-gray-500 font-bold uppercase">Anexar Comprovante</p>
-                        </>
-                      )}
+                  {sIsUploading ? (
+                    <div className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-2xl">
+                      <Loader2 className="w-6 h-6 text-indigo-500 animate-spin mb-2" />
+                      <p className="text-[10px] text-gray-500 font-bold uppercase">Enviando...</p>
                     </div>
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept=".pdf,image/*"
-                      onChange={async (e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          setSIsUploading(true);
-                          try {
-                            const url = await handleFileUpload(file);
-                            setSVoucherUrl(url);
-                            showToast("Comprovante anexado!", "success");
-                          } catch (err: any) {
-                            showToast(err.message, "error");
-                          } finally {
-                            setSIsUploading(false);
+                  ) : sVoucherUrl ? (
+                    <div className="w-full flex items-center justify-between p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl relative group">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-emerald-100 dark:bg-emerald-800/50 rounded-lg">
+                          <ShieldCheck className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-emerald-900 dark:text-emerald-100">Documento Anexado</p>
+                          <a href={sVoucherUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 hover:underline">Ouvir arquivo / Visualizar</a>
+                        </div>
+                      </div>
+                      <label className="px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg cursor-pointer transition-colors shadow-sm text-xs font-bold text-gray-700 dark:text-gray-300">
+                        Alterar
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept=".pdf,image/*"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              setSIsUploading(true);
+                              try {
+                                const url = await handleFileUpload(file);
+                                setSVoucherUrl(url);
+                                showToast("Comprovante anexado!", "success");
+                              } catch (err: any) {
+                                showToast(err.message, "error");
+                              } finally {
+                                setSIsUploading(false);
+                              }
+                            }
+                          }}
+                        />
+                      </label>
+                    </div>
+                  ) : (
+                    <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded-2xl cursor-pointer transition-all">
+                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                        <Plus className="w-6 h-6 text-gray-400 mb-1" />
+                        <p className="text-[10px] text-gray-500 font-bold uppercase">Anexar Comprovante</p>
+                      </div>
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept=".pdf,image/*"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setSIsUploading(true);
+                            try {
+                              const url = await handleFileUpload(file);
+                              setSVoucherUrl(url);
+                              showToast("Comprovante anexado!", "success");
+                            } catch (err: any) {
+                              showToast(err.message, "error");
+                            } finally {
+                              setSIsUploading(false);
+                            }
                           }
-                        }
-                      }}
-                    />
-                  </label>
+                        }}
+                      />
+                    </label>
+                  )}
                 </div>
 
                 <button
@@ -1623,25 +1653,55 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                     <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Cód. Confirmação</label>
                     <input type="text" value={crCode} onChange={(e) => setCrCode(e.target.value)} placeholder="ABC123DEF" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm uppercase font-mono" />
                   </div>
-                  <div>
+                  <div className="flex flex-col col-span-1">
                     <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Comprovante de Reserva</label>
-                    <div className="flex items-center gap-2">
-                      <label className="flex-1">
-                        <div className={cn(
-                          "flex items-center justify-center gap-2 p-3 rounded-xl border-2 border-dashed transition-all cursor-pointer",
-                          crVoucherUrl ? "border-emerald-200 bg-emerald-50 dark:border-emerald-900/10" : "border-gray-200 hover:border-indigo-300 dark:border-gray-800"
-                        )}>
-                          {crIsUploading ? (
-                            <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
-                          ) : crVoucherUrl ? (
-                            <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                          ) : (
-                            <Plus className="w-4 h-4 text-gray-400" />
-                          )}
-                          <span className="text-xs font-bold text-gray-600 dark:text-gray-400 truncate max-w-[100px]">
-                            {crIsUploading ? "Enviando..." : crVoucherUrl ? "Anexado" : "Voucher"}
-                          </span>
+                    {crIsUploading ? (
+                      <div className="flex items-center justify-center h-12 w-full border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-xl">
+                        <Loader2 className="w-4 h-4 text-indigo-500 animate-spin" />
+                      </div>
+                    ) : crVoucherUrl ? (
+                      <div className="flex items-center justify-between w-full h-12 px-3 border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/10 rounded-xl">
+                        <div className="flex items-center gap-2">
+                          <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                          <a href={crVoucherUrl} target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-emerald-700 dark:text-emerald-400 hover:underline">Ver</a>
                         </div>
+                        <div className="flex items-center gap-2">
+                          <label className="px-2 py-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md cursor-pointer transition-colors shadow-sm text-[10px] font-bold text-gray-700 dark:text-gray-300">
+                            Trocar
+                            <input
+                              type="file"
+                              className="hidden"
+                              accept=".pdf,image/*"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  setCrIsUploading(true);
+                                  try {
+                                    const url = await handleFileUpload(file);
+                                    setCrVoucherUrl(url);
+                                    showToast("Comprovante anexado!", "success");
+                                  } catch (err: any) {
+                                    showToast(err.message, "error");
+                                  } finally {
+                                    setCrIsUploading(false);
+                                  }
+                                }
+                              }}
+                            />
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => setCrVoucherUrl("")}
+                            className="p-2 bg-red-50 dark:bg-red-900/20 text-red-500 rounded-md hover:bg-red-100 transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <label className="flex items-center justify-center gap-2 h-12 w-full border-2 border-dashed border-gray-200 dark:border-gray-800 hover:border-indigo-300 dark:hover:border-gray-700 rounded-xl cursor-pointer transition-all">
+                        <Plus className="w-4 h-4 text-gray-400" />
+                        <span className="text-xs font-bold text-gray-600 dark:text-gray-400">Anexar</span>
                         <input
                           type="file"
                           className="hidden"
@@ -1653,29 +1713,22 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                               try {
                                 const url = await handleFileUpload(file);
                                 setCrVoucherUrl(url);
-                                showToast("Voucher enviado com sucesso!", "success");
-                              } catch (err) {
-                                console.error(err);
-                                showToast("Erro ao enviar voucher", "error");
+                                showToast("Comprovante anexado!", "success");
+                              } catch (err: any) {
+                                showToast(err.message, "error");
+                              } finally {
+                                setCrIsUploading(false);
                               }
-                              setCrIsUploading(false);
                             }
                           }}
                         />
                       </label>
-                      {crVoucherUrl && (
-                        <button
-                          type="button"
-                          onClick={() => setCrVoucherUrl("")}
-                          className="p-3 bg-red-50 dark:bg-red-900/20 text-red-500 rounded-xl hover:bg-red-100 transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
+                    )}
                   </div>
                 </div>
-                <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg transition-all mt-4">Salvar Aluguel</button>
+                <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg transition-all mt-4">
+                  {editingRentalId ? "Atualizar Aluguel" : "Salvar Aluguel"}
+                </button>
               </form>
             </motion.div>
           </div>
