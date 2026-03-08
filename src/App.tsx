@@ -3,7 +3,8 @@ import { LoginForm } from "./components/auth/LoginForm";
 import { TripView } from "./components/trips/TripView";
 import { ExpenseList } from "./components/expenses/ExpenseList";
 import { ItineraryView } from "./components/itinerary/ItineraryView";
-import { Loader2, Plus, Users, MapPin, Wallet, Settings, LogOut, Menu, X, ArrowLeft, Shield, TrendingUp, UserPlus, DollarSign, Calendar, Moon, Sun, Bell, CreditCard, ShieldCheck } from "lucide-react";
+import { LogisticsView } from "./components/itinerary/LogisticsView";
+import { Loader2, Plus, Users, MapPin, Wallet, Settings, LogOut, Menu, X, ArrowLeft, Shield, TrendingUp, UserPlus, DollarSign, Calendar, Moon, Sun, Bell, CreditCard, ShieldCheck, Navigation } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn, formatCurrency } from "./lib/utils";
 import { apiFetch, setAuthToken, removeAuthToken } from "./lib/api";
@@ -1137,6 +1138,15 @@ function GroupDetailView({ group, onBack, onLeave, user }: { group: Group, onBac
             Roteiro
           </button>
           <button
+            onClick={() => setActiveSubTab("logistics")}
+            className={cn(
+              "px-5 md:px-6 py-2 rounded-xl text-xs md:text-sm font-bold transition-all whitespace-nowrap",
+              activeSubTab === "logistics" ? "bg-indigo-600 text-white shadow-md shadow-indigo-100 dark:shadow-none" : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+            )}
+          >
+            Logística
+          </button>
+          <button
             onClick={() => setActiveSubTab("expenses")}
             className={cn(
               "px-5 md:px-6 py-2 rounded-xl text-xs md:text-sm font-bold transition-all whitespace-nowrap",
@@ -1158,6 +1168,7 @@ function GroupDetailView({ group, onBack, onLeave, user }: { group: Group, onBac
           <>
             {activeSubTab === "destinations" && <TripView groupId={group.id} initialData={groupData?.destinations} />}
             {activeSubTab === "itinerary" && <ItineraryView groupId={group.id} currentUserId={user?.id || ""} userIdentityDoc={user?.identityDocUrl} initialData={{ itinerary: groupData?.itinerary, flights: groupData?.flights, stays: groupData?.stays, carRentals: groupData?.carRentals, insurances: groupData?.insurances, members: groupData?.members }} />}
+            {activeSubTab === "logistics" && <LogisticsView groupId={group.id} currentUserId={user?.id || ""} userIdentityDoc={user?.identityDocUrl} initialData={{ flights: groupData?.flights, stays: groupData?.stays, carRentals: groupData?.carRentals, insurances: groupData?.insurances, members: groupData?.members }} />}
             {activeSubTab === "expenses" && <ExpenseList groupType={group.type} groupId={group.id} currentUserId={user?.id || ""} initialData={{ expenses: groupData?.expenses, members: groupData?.members }} />}
           </>
         )}
