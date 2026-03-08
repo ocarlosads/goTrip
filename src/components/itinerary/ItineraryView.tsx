@@ -974,17 +974,6 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                         </div>
                         <div className="flex-1">
                           <h4 className="font-bold text-gray-900 dark:text-white">{stay.name}</h4>
-                          {stay.address && (
-                            <a
-                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(stay.address)}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="mt-1 text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 font-bold w-fit"
-                            >
-                              <Navigation className="w-2.5 h-2.5" /> Ver no Maps
-                            </a>
-                          )}
-
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-50 dark:border-gray-800">
@@ -1072,16 +1061,15 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                       </div>
 
                       {stay.address && (
-                        <div className="mt-3 bg-gray-50/50 dark:bg-gray-800/30 p-3 rounded-2xl">
-                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Localização</p>
+                        <div className="mt-3">
                           <a
                             href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(stay.address)}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline flex items-start gap-1 font-medium leading-tight"
+                            className="w-full flex items-center justify-center gap-2 p-3 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-xl hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors border border-indigo-200 dark:border-indigo-800"
                           >
-                            <Navigation className="w-4 h-4 mt-0.5 shrink-0" />
-                            {stay.address}
+                            <Navigation className="w-4 h-4 shrink-0" />
+                            <span className="text-sm font-bold">Ver Localização</span>
                           </a>
                         </div>
                       )}
