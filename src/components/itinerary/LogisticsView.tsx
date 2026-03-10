@@ -487,13 +487,8 @@ export const LogisticsView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Gestão da Viagem</h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Roteiro, voos e hospedagem em um só lugar.</p>
-        </div>
-        <div className="flex bg-white dark:bg-gray-900 p-1 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm self-start transition-colors">
-          <button className="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 bg-indigo-600 text-white shadow-md cursor-default pointer-events-none">
-            <Navigation className="w-3.5 h-3.5" /> Logística
-          </button>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Minha Logística</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Gerencie seus voos, hospedagens e transportes.</p>
         </div>
       </div>
 
