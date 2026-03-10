@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Calendar, MapPin, Plus, Trash2, X, Plane, Hotel, Loader2 } from "lucide-react";
+import { Calendar, MapPin, Plus, Trash2, X, Plane, Hotel, Loader2, Camera } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { apiFetch } from "../../lib/api";
 import { useToast } from "../../context/ToastContext";
@@ -76,7 +76,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
   function groupItemsByDate(items: ItineraryItem[]): GroupedDay[] {
     const map: Record<string, GroupedDay> = {};
     for (const item of items) {
-      const dateKey = item.date;
+      const dateKey = typeof item.date === 'string' ? item.date.split("T")[0] : new Date(item.date).toISOString().split("T")[0];
       if (!map[dateKey]) {
         map[dateKey] = { dateKey, title: "", activities: [] };
       }
@@ -150,6 +150,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
       case "transport": return <Plane className="w-3.5 h-3.5" />;
       case "stay": return <Hotel className="w-3.5 h-3.5" />;
       case "food": return <span className="text-xs">🍽️</span>;
+      case "tour": return <Camera className="w-3.5 h-3.5" />;
       default: return <MapPin className="w-3.5 h-3.5" />;
     }
   };
@@ -301,6 +302,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                       <option value="transport">Transporte</option>
                       <option value="stay">Hospedagem</option>
                       <option value="food">Alimentação</option>
+                      <option value="tour">Passeio</option>
                     </select>
                   </div>
                 </div>

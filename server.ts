@@ -247,16 +247,16 @@ async function startServer() {
       const newGroup = await (prisma.group as any).create({
         data: {
           name, description, type: type || "group", inviteCode, ownerId: user.id, image: groupImage,
-          startDate: startDate ? new Date(startDate) : null,
-          endDate: endDate ? new Date(endDate) : null,
+          startDate: startDate ? new Date(startDate.includes("T") ? startDate : `${startDate}T12:00:00Z`) : null,
+          endDate: endDate ? new Date(endDate.includes("T") ? endDate : `${endDate}T12:00:00Z`) : null,
           members: { create: { userId: user.id, role: "OWNER" } },
         },
       });
 
       // Gerar roteiro automaticamente se houver datas
       if (startDate && endDate) {
-        const start = new Date(startDate);
-        const end = new Date(endDate);
+        const start = new Date(startDate.includes("T") ? startDate : `${startDate}T12:00:00Z`);
+        const end = new Date(endDate.includes("T") ? endDate : `${endDate}T12:00:00Z`);
         const daysToCreate = [];
 
         // Loop por cada dia do intervalo
@@ -602,7 +602,7 @@ async function startServer() {
     const { title, time, location, date, type } = req.body;
     try {
       const item = await prisma.itineraryItem.create({
-        data: { groupId, title, time: time || null, location: location || null, date: new Date(date), type: type || "activity" },
+        data: { groupId, title, time: time || null, location: location || null, date: new Date(date.includes("T") ? date : date + "T12:00:00Z"), type: type || "activity" },
       });
       res.json(item);
     } catch (err) {
@@ -625,8 +625,9 @@ async function startServer() {
     const { groupId } = req.params;
     const { date } = req.query as { date: string };
     try {
-      const start = new Date(date); start.setUTCHours(0, 0, 0, 0);
-      const end = new Date(date); end.setUTCHours(23, 59, 59, 999);
+      const targetDate = new Date(date.includes("T") ? date : `${date}T12:00:00Z`);
+      const start = new Date(targetDate); start.setUTCHours(0, 0, 0, 0);
+      const end = new Date(targetDate); end.setUTCHours(23, 59, 59, 999);
       await prisma.itineraryItem.deleteMany({ where: { groupId, date: { gte: start, lte: end } } });
       res.json({ success: true });
     } catch {
