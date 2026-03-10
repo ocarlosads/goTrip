@@ -453,6 +453,7 @@ function DashboardView({ onSelectGroup, user }: { onSelectGroup: (g: Group) => v
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
   const [joinId, setJoinId] = useState("");
   const [isJoining, setIsJoining] = useState(false);
+  const [isCreatingGroup, setIsCreatingGroup] = useState(false);
 
   // Auto-join from URL (?join=CODE)
   useEffect(() => {
@@ -495,13 +496,38 @@ function DashboardView({ onSelectGroup, user }: { onSelectGroup: (g: Group) => v
     const name = formData.get('name') as string;
     const description = formData.get('description') as string;
     const type = formData.get('type') as "solo" | "couple" | "group";
-    const image = formData.get('image') as string;
+    const imageFile = formData.get('imageFile') as File;
+    const startDate = formData.get('startDate') as string;
+    const endDate = formData.get('endDate') as string;
 
+    setIsCreatingGroup(true);
     try {
+      let imageUrl = "";
+
+      // Upload image if provided
+      if (imageFile && imageFile.size > 0) {
+        const uploadFormData = new FormData();
+        uploadFormData.append("file", imageFile);
+        uploadFormData.append("folder", "group-photos");
+
+        const uploadRes = await fetch("/api/upload", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${localStorage.getItem("auth_token")}`
+          },
+          body: uploadFormData
+        });
+
+        if (uploadRes.ok) {
+          const uploadData = await uploadRes.json();
+          imageUrl = uploadData.url;
+        }
+      }
+
       const res = await apiFetch("/api/groups", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, description, type, image }),
+        body: JSON.stringify({ name, description, type, image: imageUrl, startDate, endDate }),
       });
 
       if (res.ok) {
@@ -511,6 +537,8 @@ function DashboardView({ onSelectGroup, user }: { onSelectGroup: (g: Group) => v
       }
     } catch (err) {
       console.error("Error creating group:", err);
+    } finally {
+      setIsCreatingGroup(false);
     }
   };
 
@@ -596,7 +624,7 @@ function DashboardView({ onSelectGroup, user }: { onSelectGroup: (g: Group) => v
         </motion.div>
 
         {/* Modals will be rendered below */}
-        <CreateGroupModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} onSubmit={handleCreateGroup} />
+        <CreateGroupModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} onSubmit={handleCreateGroup} isSubmitting={isCreatingGroup} />
         <JoinGroupModal isOpen={isJoinModalOpen} onClose={() => setIsJoinModalOpen(false)} onJoin={handleJoinGroup} joinId={joinId} setJoinId={setJoinId} isJoining={isJoining} />
       </div>
     );
@@ -631,13 +659,29 @@ function DashboardView({ onSelectGroup, user }: { onSelectGroup: (g: Group) => v
         ))}
       </div>
 
-      <CreateGroupModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} onSubmit={handleCreateGroup} />
+      <CreateGroupModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} onSubmit={handleCreateGroup} isSubmitting={isCreatingGroup} />
       <JoinGroupModal isOpen={isJoinModalOpen} onClose={() => setIsJoinModalOpen(false)} onJoin={handleJoinGroup} joinId={joinId} setJoinId={setJoinId} isJoining={isJoining} />
     </div>
   );
 }
 
-function CreateGroupModal({ isOpen, onClose, onSubmit }: { isOpen: boolean, onClose: () => void, onSubmit: (e: React.FormEvent<HTMLFormElement>) => void }) {
+function CreateGroupModal({ isOpen, onClose, onSubmit, isSubmitting }: { isOpen: boolean, onClose: () => void, onSubmit: (e: React.FormEvent<HTMLFormElement>) => void, isSubmitting: boolean }) {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+    }
+  };
+
+  useEffect(() => {
+    if (!isOpen) {
+      setPreviewUrl(null);
+    }
+  }, [isOpen]);
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -698,14 +742,61 @@ function CreateGroupModal({ isOpen, onClose, onSubmit }: { isOpen: boolean, onCl
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-2">
+                    <Calendar className="w-4 h-4" /> Início
+                  </label>
+                  <input
+                    name="startDate"
+                    type="date"
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-2">
+                    <Calendar className="w-4 h-4" /> Fim
+                  </label>
+                  <input
+                    name="endDate"
+                    type="date"
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div className="bg-amber-50 dark:bg-amber-900/20 p-4 rounded-2xl border border-amber-100 dark:border-amber-900/30">
+                <p className="text-[10px] text-amber-700 dark:text-amber-400 leading-relaxed">
+                  <strong>Dica:</strong> Ao informar as datas, criaremos automaticamente os dias no seu roteiro para facilitar o planejamento.
+                </p>
+              </div>
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Link da Imagem (opcional)</label>
-                <input
-                  name="image"
-                  type="url"
-                  placeholder="https://exemplo.com/imagem.png"
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-colors"
-                />
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Foto da Viagem (opcional)</label>
+                <div className="relative group">
+                  <div className={cn(
+                    "w-full h-40 rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-700 flex flex-col items-center justify-center gap-2 overflow-hidden bg-gray-50/50 dark:bg-gray-800/50 transition-all group-hover:border-indigo-500",
+                    previewUrl && "border-none"
+                  )}>
+                    {previewUrl ? (
+                      <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <>
+                        <div className="p-3 bg-white dark:bg-gray-800 rounded-xl shadow-sm">
+                          <Plus className="w-5 h-5 text-gray-400" />
+                        </div>
+                        <p className="text-xs text-gray-400">Escolha uma imagem do seu dispositivo</p>
+                      </>
+                    )}
+                    <input
+                      name="imageFile"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileChange}
+                      className="absolute inset-0 opacity-0 cursor-pointer"
+                    />
+                  </div>
+                </div>
               </div>
 
               <div>
@@ -717,8 +808,12 @@ function CreateGroupModal({ isOpen, onClose, onSubmit }: { isOpen: boolean, onCl
                 />
               </div>
 
-              <button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-100 dark:shadow-none transition-all">
-                Criar Viagem
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-100 dark:shadow-none transition-all flex items-center justify-center gap-2 disabled:opacity-70"
+              >
+                {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "Criar Viagem"}
               </button>
             </form>
           </motion.div>
@@ -907,7 +1002,7 @@ function AdminDashboardView() {
 
 function GroupDetailView({ group, onBack, onLeave, user }: { group: Group, onBack: () => void, onLeave: (id: string) => void, user: User | null }) {
   const { showToast } = useToast();
-  const [activeSubTab, setActiveSubTab] = useState("destinations");
+  const [activeSubTab, setActiveSubTab] = useState("itinerary");
   const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
   const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
@@ -1120,15 +1215,6 @@ function GroupDetailView({ group, onBack, onLeave, user }: { group: Group, onBac
 
         <div className="flex bg-white dark:bg-gray-900 p-1 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm transition-colors overflow-x-auto no-scrollbar scroll-smooth w-fit md:mx-0 justify-start">
           <button
-            onClick={() => setActiveSubTab("destinations")}
-            className={cn(
-              "px-5 md:px-6 py-2 rounded-xl text-xs md:text-sm font-bold transition-all whitespace-nowrap",
-              activeSubTab === "destinations" ? "bg-indigo-600 text-white shadow-md shadow-indigo-100 dark:shadow-none" : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-            )}
-          >
-            Destinos
-          </button>
-          <button
             onClick={() => setActiveSubTab("itinerary")}
             className={cn(
               "px-5 md:px-6 py-2 rounded-xl text-xs md:text-sm font-bold transition-all whitespace-nowrap",
@@ -1145,6 +1231,15 @@ function GroupDetailView({ group, onBack, onLeave, user }: { group: Group, onBac
             )}
           >
             Logística
+          </button>
+          <button
+            onClick={() => setActiveSubTab("destinations")}
+            className={cn(
+              "px-5 md:px-6 py-2 rounded-xl text-xs md:text-sm font-bold transition-all whitespace-nowrap",
+              activeSubTab === "destinations" ? "bg-indigo-600 text-white shadow-md shadow-indigo-100 dark:shadow-none" : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+            )}
+          >
+            Destinos
           </button>
           <button
             onClick={() => setActiveSubTab("expenses")}
@@ -1166,9 +1261,9 @@ function GroupDetailView({ group, onBack, onLeave, user }: { group: Group, onBac
           </div>
         ) : (
           <>
-            {activeSubTab === "destinations" && <TripView groupId={group.id} initialData={groupData?.destinations} />}
             {activeSubTab === "itinerary" && <ItineraryView groupId={group.id} currentUserId={user?.id || ""} userIdentityDoc={user?.identityDocUrl} initialData={{ itinerary: groupData?.itinerary, flights: groupData?.flights, stays: groupData?.stays, carRentals: groupData?.carRentals, insurances: groupData?.insurances, members: groupData?.members }} />}
             {activeSubTab === "logistics" && <LogisticsView groupId={group.id} currentUserId={user?.id || ""} userIdentityDoc={user?.identityDocUrl} initialData={{ flights: groupData?.flights, stays: groupData?.stays, carRentals: groupData?.carRentals, insurances: groupData?.insurances, members: groupData?.members }} />}
+            {activeSubTab === "destinations" && <TripView groupId={group.id} initialData={groupData?.destinations} />}
             {activeSubTab === "expenses" && <ExpenseList groupType={group.type} groupId={group.id} currentUserId={user?.id || ""} initialData={{ expenses: groupData?.expenses, members: groupData?.members }} />}
           </>
         )}

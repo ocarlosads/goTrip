@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { ThumbsUp, ThumbsDown, Plus, X, Image as ImageIcon, Loader2 } from "lucide-react";
+import { ThumbsUp, Plus, X, Image as ImageIcon, Loader2 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { apiFetch } from "../../lib/api";
 
@@ -10,7 +10,7 @@ interface Destination {
   description: string;
   image: string;
   votes: number;
-  userVote: number; // 1, -1, or 0
+  userVote: number; // 1 or 0
 }
 
 interface TripViewProps {
@@ -24,7 +24,6 @@ export const TripView: React.FC<TripViewProps> = ({ groupId, initialData }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [newDesc, setNewDesc] = useState("");
-  const [newImage, setNewImage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
   // Edit Image State
@@ -87,16 +86,37 @@ export const TripView: React.FC<TripViewProps> = ({ groupId, initialData }) => {
     if (!newName || !newDesc) return;
     setIsSaving(true);
     try {
+      const form = e.currentTarget as HTMLFormElement;
+      const formData = new FormData(form);
+      const name = formData.get('name') as string;
+      const description = formData.get('description') as string;
+      const imageFile = formData.get('imageFile') as File;
+
+      let imageUrl = "";
+      if (imageFile && imageFile.size > 0) {
+        const uploadFormData = new FormData();
+        uploadFormData.append("file", imageFile);
+        uploadFormData.append("folder", "destinations");
+        const uploadRes = await apiFetch("/api/upload", {
+          method: "POST",
+          body: uploadFormData,
+        });
+        if (uploadRes.ok) {
+          const uploadData = await uploadRes.json();
+          imageUrl = uploadData.url;
+        }
+      }
+
       const res = await apiFetch(`/api/groups/${groupId}/destinations`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newName, description: newDesc, image: newImage || null }),
+        body: JSON.stringify({ name, description, image: imageUrl || null }),
       });
       if (res.ok) {
         const newDest = await res.json();
         setDestinations((prev) => [newDest, ...prev]);
         setIsModalOpen(false);
-        setNewName(""); setNewDesc(""); setNewImage("");
+        setNewName(""); setNewDesc("");
       }
     } catch (err) {
       console.error("Error adding destination:", err);
@@ -207,15 +227,7 @@ export const TripView: React.FC<TripViewProps> = ({ groupId, initialData }) => {
                     <ThumbsUp className="w-4 h-4" />
                     <span className="text-sm font-bold">{dest.votes}</span>
                   </button>
-                  <button
-                    onClick={() => handleVote(dest.id, -1)}
-                    className={cn(
-                      "p-2 rounded-xl border transition-all",
-                      dest.userVote === -1 ? "bg-red-500 border-red-500 text-white" : "bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 text-gray-400 hover:border-red-200"
-                    )}
-                  >
-                    <ThumbsDown className="w-4 h-4" />
-                  </button>
+                  {/* Somente votos positivos permitidos */}
                 </div>
               </div>
             </motion.div>
@@ -243,11 +255,13 @@ export const TripView: React.FC<TripViewProps> = ({ groupId, initialData }) => {
                   <textarea value={newDesc} onChange={(e) => setNewDesc(e.target.value)} placeholder="Por que este lugar é legal?" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none h-24 resize-none transition-colors" required />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">URL da Imagem (opcional)</label>
-                  <div className="relative">
-                    <input type="url" value={newImage} onChange={(e) => setNewImage(e.target.value)} placeholder="https://..." className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-colors" />
-                    <ImageIcon className="absolute left-3 top-3.5 w-4 h-4 text-gray-400" />
-                  </div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Foto do Destino (opcional)</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    name="imageFile"
+                    className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100 transition-all cursor-pointer bg-gray-50 dark:bg-gray-800 p-2 rounded-xl"
+                  />
                 </div>
                 <button type="submit" disabled={isSaving} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-70">
                   {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : "Enviar Sugestão"}

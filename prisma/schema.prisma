@@ -39,6 +39,8 @@ model Group {
   description  String?
   image        String?
   type         String          @default("group")
+  startDate    DateTime?
+  endDate      DateTime?
   inviteCode   String          @unique
   ownerId      String
   createdAt    DateTime        @default(now())

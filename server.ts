@@ -86,34 +86,25 @@ async function startServer() {
       if (existing) return res.status(400).json({ error: "E-mail já cadastrado" });
 
       const hashedPassword = await bcrypt.hash(password, 10);
-      const verificationToken = Math.floor(100000 + Math.random() * 900000).toString();
 
-      // Criar em PendingUser (NÃO cria conta real ainda)
-      await prisma.pendingUser.upsert({
-        where: { email },
-        update: { password: hashedPassword, name: name || email.split("@")[0], verificationToken },
-        create: { email, password: hashedPassword, name: name || email.split("@")[0], verificationToken }
+      // Criar usuário diretamente (removida verificação por enquanto)
+      const user = await prisma.user.create({
+        data: {
+          email,
+          password: hashedPassword,
+          name: name || email.split("@")[0],
+          isVerified: true
+        }
       });
 
-      // Enviar e-mail via Resend
-      try {
-        console.log(`[RESEND] Tentando enviar e-mail para: ${email}`);
-        const { error: resendError } = await resend.emails.send({
-          from: "goTrip <onboarding@resend.dev>",
-          to: email,
-          subject: "Verifique seu e-mail - goTrip",
-          html: `<p>Seu código de verificação é: <strong>${verificationToken}</strong></p>`
-        });
-        if (resendError) console.error("[RESEND ERROR]", resendError);
-      } catch (emailErr: any) {
-        console.error("Erro fatal ao enviar e-mail:", emailErr.message);
-      }
+      const authToken = jwt.sign({ email: user.email, id: user.id }, JWT_SECRET, { expiresIn: "7d" });
+      res.cookie("auth_token", authToken, { httpOnly: true, secure: false, sameSite: "lax", maxAge: 7 * 24 * 60 * 60 * 1000 });
 
-      console.log(`[AUTH] Código de verificação para ${email}: ${verificationToken}`);
-      res.json({ message: "Código enviado!", email });
+      console.log(`[AUTH] Usuário registrado diretamente: ${email}`);
+      res.json({ success: true, user: { email: user.email, id: user.id }, token: authToken });
     } catch (err) {
       console.error("Register error:", err);
-      res.status(500).json({ error: "Erro ao iniciar cadastro" });
+      res.status(500).json({ error: "Erro ao realizar cadastro" });
     }
   });
 
@@ -241,7 +232,7 @@ async function startServer() {
 
   // ─── Group Endpoints ───────────────────────────────────────────────────────
   app.post("/api/groups", authenticate, async (req: any, res) => {
-    const { name, description, type, image } = req.body;
+    const { name, description, type, image, startDate, endDate } = req.body;
     const inviteCode = Math.random().toString(36).substring(2, 9).toUpperCase();
     const defaultImage = "https://images.unsplash.com/photo-1483729558449-99ef09a8c325?q=80&w=1470&auto=format&fit=crop";
     const groupImage = image || defaultImage;
@@ -252,12 +243,41 @@ async function startServer() {
         update: {},
         create: { email: req.user.email, name: req.user.email.split("@")[0] },
       });
-      const newGroup = await prisma.group.create({
+
+      const newGroup = await (prisma.group as any).create({
         data: {
           name, description, type: type || "group", inviteCode, ownerId: user.id, image: groupImage,
+          startDate: startDate ? new Date(startDate) : null,
+          endDate: endDate ? new Date(endDate) : null,
           members: { create: { userId: user.id, role: "OWNER" } },
         },
       });
+
+      // Gerar roteiro automaticamente se houver datas
+      if (startDate && endDate) {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        const daysToCreate = [];
+
+        // Loop por cada dia do intervalo
+        let current = new Date(start);
+        while (current <= end) {
+          daysToCreate.push({
+            groupId: newGroup.id,
+            title: `Dia ${daysToCreate.length + 1}`,
+            date: new Date(current),
+            type: "day_header"
+          });
+          current.setDate(current.getDate() + 1);
+        }
+
+        if (daysToCreate.length > 0) {
+          await prisma.itineraryItem.createMany({
+            data: daysToCreate
+          });
+        }
+      }
+
       res.json({ ...newGroup, memberCount: 1, userBalance: 0, image: newGroup.image });
     } catch (err) {
       console.error("Error creating group:", err);
@@ -547,10 +567,12 @@ async function startServer() {
       if (value === 0) {
         await prisma.vote.deleteMany({ where: { userId: user.id, destinationId: destId } });
       } else {
+        // Apenas permitir valor 1 (voto positivo)
+        const voteValue = 1;
         await prisma.vote.upsert({
           where: { userId_destinationId: { userId: user.id, destinationId: destId } },
-          update: { value },
-          create: { userId: user.id, destinationId: destId, value },
+          update: { value: voteValue },
+          create: { userId: user.id, destinationId: destId, value: voteValue },
         });
       }
       const dest = await prisma.destination.findUnique({ where: { id: destId }, include: { votes: true } });
@@ -1084,7 +1106,8 @@ async function startServer() {
       const file = req.file;
       const fileExt = path.extname(file.originalname);
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}${fileExt}`;
-      const filePath = `boarding-passes/${fileName}`;
+      const folder = req.body.folder || "uploads";
+      const filePath = `${folder}/${fileName}`;
 
       const { data, error } = await supabase.storage
         .from("boarding-passes")

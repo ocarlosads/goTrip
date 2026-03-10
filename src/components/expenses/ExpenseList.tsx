@@ -354,12 +354,12 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ groupType = "group", g
   return (
     <div className="space-y-8">
       {/* Summary Cards */}
-      <div className={cn("grid grid-cols-1 gap-4", isSolo ? "md:grid-cols-1" : "md:grid-cols-3")}>
+      <div className={cn("grid grid-cols-1 gap-4", groupType !== "group" ? "md:grid-cols-1" : "md:grid-cols-3")}>
         <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm transition-colors">
           <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Total Gasto</p>
           <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(totalSpent)}</p>
         </div>
-        {!isSolo && (
+        {groupType === "group" && (
           <>
             <div className="bg-emerald-50 dark:bg-emerald-900/20 p-6 rounded-3xl border border-emerald-100 dark:border-emerald-900/30 shadow-sm transition-colors">
               <div className="flex items-center justify-between mb-1">
@@ -380,7 +380,7 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ groupType = "group", g
       </div>
 
       {/* Member Balances Summary */}
-      {!isSolo && (
+      {groupType === "group" && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm p-6 transition-colors">
             <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
@@ -525,7 +525,7 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ groupType = "group", g
                       <div className="p-6 space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           {/* Payers Section */}
-                          <div>
+                          <div className={cn(groupType !== "group" && "md:col-span-2")}>
                             <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Quem pagou</p>
                             <div className="space-y-2">
                               {expense.payers.map(payer => (
@@ -542,44 +542,46 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ groupType = "group", g
                             </div>
                           </div>
 
-                          {/* Splits Section */}
-                          <div>
-                            <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Divisão e Status</p>
-                            <div className="space-y-2">
-                              {expense.splits.map(split => (
-                                <div key={split.userId} className="bg-white dark:bg-gray-900 p-3 rounded-2xl border border-gray-100 dark:border-gray-800 flex items-center justify-between shadow-sm transition-colors">
-                                  <div className="flex items-center gap-3">
-                                    <div className={cn(
-                                      "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold",
-                                      split.isPaid ? "bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300" : "bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300"
-                                    )}>
-                                      {split.userName[0]}
+                          {/* Splits Section - Hide for solo/couple */}
+                          {groupType === "group" && (
+                            <div>
+                              <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Divisão e Status</p>
+                              <div className="space-y-2">
+                                {expense.splits.map(split => (
+                                  <div key={split.userId} className="bg-white dark:bg-gray-900 p-3 rounded-2xl border border-gray-100 dark:border-gray-800 flex items-center justify-between shadow-sm transition-colors">
+                                    <div className="flex items-center gap-3">
+                                      <div className={cn(
+                                        "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold",
+                                        split.isPaid ? "bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300" : "bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300"
+                                      )}>
+                                        {split.userName[0]}
+                                      </div>
+                                      <div>
+                                        <p className="text-sm font-bold text-gray-900 dark:text-white">
+                                          {split.userName} {split.shares > 1 && <span className="text-[10px] bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded text-gray-500 dark:text-gray-400 ml-1">{split.shares} cotas</span>}
+                                        </p>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400">{formatCurrency(split.amount)}</p>
+                                      </div>
                                     </div>
-                                    <div>
-                                      <p className="text-sm font-bold text-gray-900 dark:text-white">
-                                        {split.userName} {split.shares > 1 && <span className="text-[10px] bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded text-gray-500 dark:text-gray-400 ml-1">{split.shares} cotas</span>}
-                                      </p>
-                                      <p className="text-xs text-gray-500 dark:text-gray-400">{formatCurrency(split.amount)}</p>
-                                    </div>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        toggleSplitPaid(expense.id, split.userId);
+                                      }}
+                                      className={cn(
+                                        "px-3 py-1 rounded-lg text-[10px] font-bold uppercase transition-all",
+                                        split.isPaid
+                                          ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/50"
+                                          : "bg-white dark:bg-gray-800 text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-gray-700 hover:border-emerald-200 dark:hover:border-emerald-800 hover:text-emerald-600 dark:hover:text-emerald-400"
+                                      )}
+                                    >
+                                      {split.isPaid ? "Pago" : "Marcar Pago"}
+                                    </button>
                                   </div>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      toggleSplitPaid(expense.id, split.userId);
-                                    }}
-                                    className={cn(
-                                      "px-3 py-1 rounded-lg text-[10px] font-bold uppercase transition-all",
-                                      split.isPaid
-                                        ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/50"
-                                        : "bg-white dark:bg-gray-800 text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-gray-700 hover:border-emerald-200 dark:hover:border-emerald-800 hover:text-emerald-600 dark:hover:text-emerald-400"
-                                    )}
-                                  >
-                                    {split.isPaid ? "Pago" : "Marcar Pago"}
-                                  </button>
-                                </div>
-                              ))}
+                                ))}
+                              </div>
                             </div>
-                          </div>
+                          )}
                         </div>
                       </div>
                     </motion.div>
@@ -646,34 +648,8 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ groupType = "group", g
                     </div>
                   </div>
 
-                  {groupType === "couple" && (
-                    <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-indigo-100 dark:bg-indigo-900/50 rounded-lg text-indigo-600 dark:text-indigo-400">
-                          <Users className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-gray-900 dark:text-white">Dividir despesa?</p>
-                          <p className="text-[10px] text-gray-500 dark:text-gray-400">Ative para dividir os custos com seu parceiro(a)</p>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setShouldSplit(!shouldSplit)}
-                        className={cn(
-                          "w-12 h-6 rounded-full transition-all relative",
-                          shouldSplit ? "bg-indigo-600" : "bg-gray-300 dark:bg-gray-700"
-                        )}
-                      >
-                        <div className={cn(
-                          "absolute top-1 w-4 h-4 bg-white rounded-full transition-all",
-                          shouldSplit ? "left-7" : "left-1"
-                        )} />
-                      </button>
-                    </div>
-                  )}
 
-                  {!isSolo && (groupType !== "couple" || shouldSplit) && (
+                  {!isSolo && groupType === "group" && (
                     <>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-2">
                         <Wallet className="w-4 h-4" /> Quem pagou?

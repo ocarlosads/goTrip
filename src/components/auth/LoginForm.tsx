@@ -88,7 +88,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
       const data = await res.json();
       if (res.ok) {
         if (mode === "register") {
-          setMode("verify");
+          onLogin(email, data.token, data.user);
         } else {
           onLogin(email, data.token, data.user);
         }
