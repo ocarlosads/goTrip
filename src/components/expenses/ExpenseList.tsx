@@ -608,7 +608,7 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ groupType = "group", g
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative bg-white dark:bg-gray-900 w-full max-w-lg rounded-3xl shadow-2xl p-8 overflow-y-auto max-h-[90vh] transition-colors"
+              className="relative bg-white dark:bg-gray-900 w-full max-w-lg rounded-3xl shadow-2xl p-4 sm:p-6 md:p-8 overflow-y-auto max-h-[90vh] transition-colors overflow-x-hidden"
             >
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Nova Despesa</h2>

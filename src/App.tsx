@@ -699,7 +699,7 @@ function CreateGroupModal({ isOpen, onClose, onSubmit, isSubmitting }: { isOpen:
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            className="relative bg-white dark:bg-gray-900 w-full max-w-lg rounded-3xl shadow-2xl p-8 transition-colors max-h-[90vh] overflow-y-auto scroll-smooth"
+            className="relative bg-white dark:bg-gray-900 w-full max-w-lg rounded-3xl shadow-2xl p-5 sm:p-6 md:p-8 transition-colors max-h-[90vh] overflow-y-auto scroll-smooth"
           >
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Criar nova viagem</h2>
@@ -841,7 +841,7 @@ function JoinGroupModal({ isOpen, onClose, onJoin, joinId, setJoinId, isJoining 
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            className="relative bg-white dark:bg-gray-900 w-full max-w-sm rounded-3xl shadow-2xl p-8 transition-colors"
+            className="relative bg-white dark:bg-gray-900 w-full max-w-sm rounded-3xl shadow-2xl p-5 sm:p-6 md:p-8 max-h-[90vh] overflow-y-auto transition-colors"
           >
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Entrar em Viagem</h2>
@@ -1172,7 +1172,7 @@ function GroupDetailView({ group, onBack, onLeave, user }: { group: Group, onBac
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative bg-white dark:bg-gray-900 w-full max-w-sm rounded-3xl shadow-2xl p-8 transition-colors text-center"
+              className="relative bg-white dark:bg-gray-900 w-full max-w-sm rounded-3xl shadow-2xl p-5 sm:p-6 md:p-8 max-h-[90vh] overflow-y-auto transition-colors text-center"
             >
               <div className="bg-red-100 dark:bg-red-900/30 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6">
                 <LogOut className="w-8 h-8 text-red-600 dark:text-red-400" />
@@ -1216,7 +1216,7 @@ function GroupDetailView({ group, onBack, onLeave, user }: { group: Group, onBac
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative bg-white dark:bg-gray-900 w-full max-w-lg rounded-3xl shadow-2xl p-8 transition-colors"
+              className="relative bg-white dark:bg-gray-900 w-full max-w-lg rounded-3xl shadow-2xl p-5 sm:p-6 md:p-8 max-h-[90vh] overflow-y-auto transition-colors"
             >
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
@@ -1312,7 +1312,7 @@ function GroupDetailView({ group, onBack, onLeave, user }: { group: Group, onBac
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative bg-white dark:bg-gray-900 w-full max-w-lg rounded-3xl shadow-2xl p-6 md:p-8 overflow-hidden transition-colors flex flex-col"
+              className="relative bg-white dark:bg-gray-900 w-full max-w-lg rounded-3xl shadow-2xl p-5 sm:p-6 md:p-8 max-h-[90vh] overflow-y-auto overflow-x-hidden transition-colors flex flex-col"
               style={{ maxHeight: '80vh' }}
             >
               <div className="flex items-center justify-between mb-6 shrink-0">
