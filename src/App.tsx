@@ -891,6 +891,19 @@ function GroupCard({ group, onClick }: { group: Group, onClick: () => void, key?
     group: "Grupo"
   };
 
+  const getDaysUntilTrip = () => {
+    const targetDate = group.startDate || group.nextTripDate;
+    if (!targetDate) return null;
+    const target = new Date(targetDate);
+    const today = new Date();
+    target.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
+    const diffTime = target.getTime() - today.getTime();
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  };
+
+  const daysUntil = getDaysUntilTrip();
+
   return (
     <motion.div
       whileHover={{ y: -4 }}
@@ -923,20 +936,21 @@ function GroupCard({ group, onClick }: { group: Group, onClick: () => void, key?
 
         <div className="flex items-center justify-between pt-4 border-t border-gray-50 dark:border-gray-800">
           <div className="flex flex-col">
-            <span className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500">Seu Saldo</span>
+            <span className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500">Contagem Regressiva</span>
             <span className={cn(
               "text-sm font-bold",
-              group.userBalance >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 dark:text-red-400"
+              daysUntil !== null && daysUntil > 0 ? "text-indigo-600 dark:text-indigo-400" :
+                daysUntil === 0 ? "text-emerald-600 dark:text-emerald-400" : "text-gray-500"
             )}>
-              {group.userBalance >= 0 ? "+" : ""}{formatCurrency(group.userBalance)}
+              {daysUntil === null ? "A definir" : daysUntil > 0 ? `Faltam ${daysUntil} dias` : daysUntil === 0 ? "É hoje!" : `Há ${Math.abs(daysUntil)} dias`}
             </span>
           </div>
           <div className="flex flex-col items-end">
-            <span className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500">Data da Viagem</span>
+            <span className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500">Data de Partida</span>
             <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
-              {group.startDate && group.endDate
-                ? `${new Date(group.startDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })} - ${new Date(group.endDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}`
-                : group.nextTripDate ? new Date(group.nextTripDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) : "A definir"}
+              {group.startDate
+                ? new Date(group.startDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
+                : group.nextTripDate ? new Date(group.nextTripDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }) : "A definir"}
             </span>
           </div>
         </div>
