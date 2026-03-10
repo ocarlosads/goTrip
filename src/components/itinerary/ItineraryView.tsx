@@ -4,6 +4,7 @@ import { Calendar, MapPin, Plus, Trash2, X, Plane, Hotel, Loader2, Camera, Car, 
 import { cn } from "../../lib/utils";
 import { apiFetch } from "../../lib/api";
 import { useToast } from "../../context/ToastContext";
+import DateInput from "../ui/DateInput";
 
 interface ItineraryItem {
   id: string;
@@ -223,7 +224,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                         </div>
                         <div>
                           <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                            {new Date(day.dateKey).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })}
+                            {new Date(day.dateKey + 'T12:00:00').toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })}
                             {isToday && <span className="text-[10px] uppercase font-black bg-emerald-500 text-white px-2 py-0.5 rounded-full shadow-sm ml-2">Hoje</span>}
                           </h3>
                           {day.title && <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">{day.title}</p>}
@@ -296,7 +297,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
               <form onSubmit={handleAddDay} className="space-y-4">
                 <div>
                   <label className="block text-sm font-bold mb-2">Data</label>
-                  <input type="date" required value={newDayDate} onChange={e => setNewDayDate(e.target.value)} className="w-full bg-gray-50 dark:bg-gray-800 border-0 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-600 outline-none [color-scheme:light] dark:[color-scheme:dark]" />
+                  <DateInput required value={newDayDate} onChange={v => setNewDayDate(v)} className="w-full bg-gray-50 dark:bg-gray-800 border-0 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-600 outline-none" />
                 </div>
                 <div>
                   <label className="block text-sm font-bold mb-2">Título (Opcional)</label>

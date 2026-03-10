@@ -4,6 +4,7 @@ import { TripView } from "./components/trips/TripView";
 import { ExpenseList } from "./components/expenses/ExpenseList";
 import { ItineraryView } from "./components/itinerary/ItineraryView";
 import { LogisticsView } from "./components/itinerary/LogisticsView";
+import DateInput from "./components/ui/DateInput";
 import { Loader2, Plus, Users, MapPin, Wallet, Settings, LogOut, Menu, X, ArrowLeft, Shield, TrendingUp, UserPlus, DollarSign, Calendar, Moon, Sun, Bell, CreditCard, ShieldCheck, Navigation } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn, formatCurrency } from "./lib/utils";
@@ -749,9 +750,8 @@ function CreateGroupModal({ isOpen, onClose, onSubmit, isSubmitting }: { isOpen:
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-2">
                     <Calendar className="w-4 h-4" /> Início
                   </label>
-                  <input
+                  <DateInput
                     name="startDate"
-                    type="date"
                     className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-colors"
                   />
                 </div>
@@ -759,9 +759,8 @@ function CreateGroupModal({ isOpen, onClose, onSubmit, isSubmitting }: { isOpen:
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-2">
                     <Calendar className="w-4 h-4" /> Fim
                   </label>
-                  <input
+                  <DateInput
                     name="endDate"
-                    type="date"
                     className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-colors"
                   />
                 </div>
@@ -1261,23 +1260,20 @@ function GroupDetailView({ group, onBack, onLeave, user }: { group: Group, onBac
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-2">
                       <Calendar className="w-4 h-4" /> Início
                     </label>
-                    <input
-                      type="date"
+                    <DateInput
                       value={newStartDate}
-                      onChange={(e) => setNewStartDate(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-colors [color-scheme:light] dark:[color-scheme:dark]"
+                      onChange={(v) => setNewStartDate(v)}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-colors"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-2">
                       <Calendar className="w-4 h-4" /> Fim
                     </label>
-                    <input
-                      type="date"
+                    <DateInput
                       value={newEndDate}
-                      onChange={(e) => setNewEndDate(e.target.value)}
-                      min={newStartDate}
-                      className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-colors [color-scheme:light] dark:[color-scheme:dark]"
+                      onChange={(v) => setNewEndDate(v)}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-colors"
                     />
                   </div>
                 </div>
