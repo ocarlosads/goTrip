@@ -1251,7 +1251,7 @@ function GroupDetailView({ group, onBack, onLeave, user }: { group: Group, onBac
                       type="date"
                       value={newStartDate}
                       onChange={(e) => setNewStartDate(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-colors"
+                      className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-colors [color-scheme:light] dark:[color-scheme:dark]"
                     />
                   </div>
                   <div>
@@ -1263,7 +1263,7 @@ function GroupDetailView({ group, onBack, onLeave, user }: { group: Group, onBac
                       value={newEndDate}
                       onChange={(e) => setNewEndDate(e.target.value)}
                       min={newStartDate}
-                      className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-colors"
+                      className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-colors [color-scheme:light] dark:[color-scheme:dark]"
                     />
                   </div>
                 </div>

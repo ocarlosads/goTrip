@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Calendar, MapPin, Plus, Trash2, X, Plane, Hotel, Loader2, Camera } from "lucide-react";
 import { cn } from "../../lib/utils";
@@ -64,13 +64,16 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
     finally { setIsLoading(false); }
   };
 
+  const hasMounted = useRef(false);
+
   useEffect(() => {
-    if (initialData) {
+    if (initialData && !hasMounted.current) {
       setDays(groupItemsByDate(initialData.itinerary || []));
       setIsLoading(false);
+      hasMounted.current = true;
       return;
     }
-    fetchAll();
+    if (!initialData) fetchAll();
   }, [groupId, initialData]);
 
   function groupItemsByDate(items: ItineraryItem[]): GroupedDay[] {
