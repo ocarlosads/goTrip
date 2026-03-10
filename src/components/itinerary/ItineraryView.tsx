@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Calendar, MapPin, Plus, Trash2, X, Plane, Hotel, Loader2, Camera } from "lucide-react";
+import { Calendar, MapPin, Plus, Trash2, X, Plane, Hotel, Loader2, Camera, Car, Utensils, Ticket, Compass } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { apiFetch } from "../../lib/api";
 import { useToast } from "../../context/ToastContext";
@@ -150,11 +150,12 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
 
   const getActivityIcon = (type: string) => {
     switch (type) {
-      case "transport": return <Plane className="w-3.5 h-3.5" />;
+      case "transport": return <Car className="w-3.5 h-3.5" />;
       case "stay": return <Hotel className="w-3.5 h-3.5" />;
-      case "food": return <span className="text-xs">🍽️</span>;
+      case "food": return <Utensils className="w-3.5 h-3.5" />;
       case "tour": return <Camera className="w-3.5 h-3.5" />;
-      default: return <MapPin className="w-3.5 h-3.5" />;
+      case "activity": return <Ticket className="w-3.5 h-3.5" />;
+      default: return <Compass className="w-3.5 h-3.5" />;
     }
   };
 
@@ -219,9 +220,11 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                   </div>
                 </div>
 
-                <div className="space-y-4">
+                <div className="space-y-4 pl-0">
                   {day.activities.map((activity) => (
-                    <div key={activity.id} className="group relative">
+                    <div key={activity.id} className="group relative pl-2 md:pl-4">
+                      {/* Activity Dot linking to the absolute line of the day */}
+                      <div className="absolute -left-[27px] md:-left-[23px] top-[1.3rem] w-3 h-3 bg-indigo-100 dark:bg-indigo-900/50 border-2 border-indigo-400 dark:border-indigo-500 rounded-full z-10"></div>
                       <div className="bg-white dark:bg-gray-900 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm transition-all hover:shadow-md hover:border-indigo-100 dark:hover:border-indigo-900/30">
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex items-start gap-4">
@@ -300,12 +303,12 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                   </div>
                   <div>
                     <label className="block text-sm font-bold mb-2">Tipo</label>
-                    <select value={newActivityType} onChange={e => setNewActivityType(e.target.value)} className="w-full bg-gray-50 dark:bg-gray-800 border-0 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-600 outline-none">
-                      <option value="activity">Atividade</option>
-                      <option value="transport">Transporte</option>
-                      <option value="stay">Hospedagem</option>
-                      <option value="food">Alimentação</option>
-                      <option value="tour">Passeio</option>
+                    <select value={newActivityType} onChange={e => setNewActivityType(e.target.value)} className="w-full bg-gray-50 dark:bg-gray-800 border-0 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-600 outline-none [color-scheme:light] dark:[color-scheme:dark]">
+                      <option className="bg-white dark:bg-gray-900" value="activity">Atividade</option>
+                      <option className="bg-white dark:bg-gray-900" value="transport">Transporte</option>
+                      <option className="bg-white dark:bg-gray-900" value="stay">Hospedagem</option>
+                      <option className="bg-white dark:bg-gray-900" value="food">Alimentação</option>
+                      <option className="bg-white dark:bg-gray-900" value="tour">Passeio</option>
                     </select>
                   </div>
                 </div>
