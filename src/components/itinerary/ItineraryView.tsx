@@ -54,7 +54,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
 
   const fetchAll = async () => {
     try {
-      const res = await apiFetch(`/api/groups/${groupId}/details`);
+      const res = await apiFetch(`/api/groups/${groupId}/data`);
       if (res.ok) {
         const data = await res.json();
         setDays(groupItemsByDate(data.itinerary));
@@ -272,11 +272,11 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
               <form onSubmit={handleAddDay} className="space-y-4">
                 <div>
                   <label className="block text-sm font-bold mb-2">Data</label>
-                  <input type="date" required value={newDayDate} onChange={e => setNewDayDate(e.target.value)} className="w-full bg-gray-50 dark:bg-gray-800 border-0 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-600 outline-none" />
+                  <input type="date" required value={newDayDate} onChange={e => setNewDayDate(e.target.value)} className="w-full bg-gray-50 dark:bg-gray-800 border-0 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-600 outline-none [color-scheme:light] dark:[color-scheme:dark]" />
                 </div>
                 <div>
                   <label className="block text-sm font-bold mb-2">Título (Opcional)</label>
-                  <input type="text" placeholder="Ex: Chegada em Paris" value={newDayTitle} onChange={e => setNewDayTitle(e.target.value)} className="w-full bg-gray-50 dark:bg-gray-800 border-0 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-600 outline-none" />
+                  <input type="text" placeholder="Ex: Chegada em Paris" value={newDayTitle} onChange={e => setNewDayTitle(e.target.value)} className="w-full bg-gray-50 dark:bg-gray-800 border-0 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-600 outline-none" />
                 </div>
                 <button type="submit" className="w-full bg-indigo-600 text-white font-bold py-4 rounded-2xl hover:bg-indigo-700 transition-all">Adicionar Dia</button>
               </form>
@@ -296,11 +296,11 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-bold mb-2">Horário</label>
-                    <input type="time" required value={newActivityTime} onChange={e => setNewActivityTime(e.target.value)} className="w-full bg-gray-50 dark:bg-gray-800 border-0 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-600 outline-none" />
+                    <input type="time" required value={newActivityTime} onChange={e => setNewActivityTime(e.target.value)} className="w-full bg-gray-50 dark:bg-gray-800 border-0 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-600 outline-none [color-scheme:light] dark:[color-scheme:dark]" />
                   </div>
                   <div>
                     <label className="block text-sm font-bold mb-2">Tipo</label>
-                    <select value={newActivityType} onChange={e => setNewActivityType(e.target.value)} className="w-full bg-gray-50 dark:bg-gray-800 border-0 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-600 outline-none">
+                    <select value={newActivityType} onChange={e => setNewActivityType(e.target.value)} className="w-full bg-gray-50 dark:bg-gray-800 border-0 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-600 outline-none">
                       <option value="activity">Atividade</option>
                       <option value="transport">Transporte</option>
                       <option value="stay">Hospedagem</option>
@@ -311,11 +311,11 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                 </div>
                 <div>
                   <label className="block text-sm font-bold mb-2">Descrição</label>
-                  <input type="text" placeholder="O que você vai fazer?" required value={newActivityDesc} onChange={e => setNewActivityDesc(e.target.value)} className="w-full bg-gray-50 dark:bg-gray-800 border-0 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-600 outline-none" />
+                  <input type="text" placeholder="O que você vai fazer?" required value={newActivityDesc} onChange={e => setNewActivityDesc(e.target.value)} className="w-full bg-gray-50 dark:bg-gray-800 border-0 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-600 outline-none" />
                 </div>
                 <div>
                   <label className="block text-sm font-bold mb-2">Localização (Opcional)</label>
-                  <input type="text" placeholder="Ex: Museu do Louvre" value={newActivityLoc} onChange={e => setNewActivityLoc(e.target.value)} className="w-full bg-gray-50 dark:bg-gray-800 border-0 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-600 outline-none" />
+                  <input type="text" placeholder="Ex: Museu do Louvre" value={newActivityLoc} onChange={e => setNewActivityLoc(e.target.value)} className="w-full bg-gray-50 dark:bg-gray-800 border-0 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-600 outline-none" />
                 </div>
                 <button type="submit" className="w-full bg-indigo-600 text-white font-bold py-4 rounded-2xl hover:bg-indigo-700 transition-all">Adicionar Atividade</button>
               </form>
