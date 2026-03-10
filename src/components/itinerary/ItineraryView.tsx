@@ -195,8 +195,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
         ) : (
           <div className="space-y-8">
             {days.map((day, index) => {
-              const d = new Date();
-              const todayStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+              const todayStr = new Date().toLocaleDateString('sv-SE');
               const isToday = day.dateKey === todayStr;
 
               return (

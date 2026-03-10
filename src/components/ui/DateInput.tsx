@@ -71,7 +71,7 @@ export default function DateInput({ value, onChange, className = "", required, p
                 onChange={handleChange}
                 maxLength={10}
                 required={required}
-                className={className}
+                className={className + " box-border max-w-full"}
                 autoComplete="off"
             />
             {/* Hidden input para FormData */}

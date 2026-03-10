@@ -138,7 +138,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-black/5 dark:border-white/5 p-8 transition-colors"
+        className="w-full max-w-md bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-black/5 dark:border-white/5 p-4 sm:p-6 md:p-8 transition-colors"
       >
         <div className="flex items-center justify-center mb-8">
           <div className="bg-indigo-600 p-3 rounded-xl">
