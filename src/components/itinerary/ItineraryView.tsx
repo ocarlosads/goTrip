@@ -220,7 +220,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                       </div>
                       <div>
                         <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                          {new Date(day.dateKey).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })}
+                          {new Date(day.dateKey).toLocaleDateString("pt-BR", { timeZone: 'UTC' })}
                           {isToday && <span className="text-[10px] uppercase font-black bg-emerald-500 text-white px-2 py-0.5 rounded-full shadow-sm ml-2">Hoje</span>}
                         </h3>
                         {day.title && <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">{day.title}</p>}

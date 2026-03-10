@@ -949,8 +949,8 @@ function GroupCard({ group, onClick }: { group: Group, onClick: () => void, key?
             <span className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500">Data de Partida</span>
             <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
               {group.startDate
-                ? new Date(group.startDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
-                : group.nextTripDate ? new Date(group.nextTripDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }) : "A definir"}
+                ? new Date(group.startDate).toLocaleDateString('pt-BR')
+                : group.nextTripDate ? new Date(group.nextTripDate).toLocaleDateString('pt-BR') : "A definir"}
             </span>
           </div>
         </div>
