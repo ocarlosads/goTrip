@@ -394,6 +394,8 @@ async function startServer() {
         memberCount: m.group.members.length,
         userBalance: 0,
         image: m.group.image,
+        startDate: m.group.startDate,
+        endDate: m.group.endDate,
       }));
       res.json(groups);
     } catch (err) {
