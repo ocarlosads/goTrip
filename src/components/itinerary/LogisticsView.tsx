@@ -604,8 +604,8 @@ export const LogisticsView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                           setEditingFlightId(flight.id);
                           setFNumber(flight.number || "");
                           setFAirline(flight.airline || "");
-                          setFDepTime(flight.departureTime ? new Date(flight.departureTime).toISOString().slice(0, 16) : "");
-                          setFArrTime(flight.arrivalTime ? new Date(flight.arrivalTime).toISOString().slice(0, 16) : "");
+                          setFDepTime(flight.departureTime ? new Date(flight.departureTime).toISOString().split('T')[0] : "");
+                          setFArrTime(flight.arrivalTime ? new Date(flight.arrivalTime).toISOString().split('T')[0] : "");
                           setFOrigin(flight.origin || "");
                           setFDest(flight.destination || "");
                           const myP = flight.passengers.find(p => p.userId === currentUserId);
@@ -921,9 +921,9 @@ export const LogisticsView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                           setCrCompany(rental.company);
                           setCrModel(rental.model || "");
                           setCrPickupLoc(rental.pickupLocation || "");
-                          setCrPickupTime(formatDateTimeInput(rental.pickupTime));
+                          setCrPickupTime(rental.pickupTime ? new Date(rental.pickupTime).toISOString().split('T')[0] : "");
                           setCrDropoffLoc(rental.dropoffLocation || "");
-                          setCrDropoffTime(formatDateTimeInput(rental.dropoffTime));
+                          setCrDropoffTime(rental.dropoffTime ? new Date(rental.dropoffTime).toISOString().split('T')[0] : "");
                           setCrCode(rental.confirmationCode || "");
                           setCrVoucherUrl(rental.bookingVoucherUrl || "");
                           setIsAddRentalModalOpen(true);
@@ -1165,8 +1165,8 @@ export const LogisticsView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                     <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Destino</label><input type="text" value={fDest} onChange={(e) => setFDest(e.target.value)} placeholder="FLN" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm font-bold" /></div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Partida</label><input type="datetime-local" value={fDepTime} onChange={(e) => setFDepTime(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-xs" /></div>
-                    <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Chegada</label><input type="datetime-local" value={fArrTime} onChange={(e) => setFArrTime(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-xs" /></div>
+                    <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Partida</label><input type="date" value={fDepTime} onChange={(e) => setFDepTime(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm [color-scheme:light] dark:[color-scheme:dark]" /></div>
+                    <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Chegada</label><input type="date" value={fArrTime} onChange={(e) => setFArrTime(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm [color-scheme:light] dark:[color-scheme:dark]" /></div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -1215,8 +1215,8 @@ export const LogisticsView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                         <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Destino</label><input type="text" value={fOrigin} readOnly className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-900 text-gray-500 outline-none text-sm font-bold cursor-not-allowed" /></div>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Partida (Retorno)</label><input type="datetime-local" value={rDepTime} onChange={(e) => setRDepTime(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-xs" /></div>
-                        <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Chegada (Retorno)</label><input type="datetime-local" value={rArrTime} onChange={(e) => setRArrTime(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-xs" /></div>
+                        <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Partida (Retorno)</label><input type="date" value={rDepTime} onChange={(e) => setRDepTime(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm [color-scheme:light] dark:[color-scheme:dark]" /></div>
+                        <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Chegada (Retorno)</label><input type="date" value={rArrTime} onChange={(e) => setRArrTime(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm [color-scheme:light] dark:[color-scheme:dark]" /></div>
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
@@ -1308,8 +1308,8 @@ export const LogisticsView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                   <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Localização / Endereço</label><input type="text" value={sAddress} onChange={(e) => setSAddress(e.target.value)} placeholder="Rua, Cidade ou link do Google Maps" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium" /></div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Check-in</label><input type="date" value={sCheckIn} onChange={(e) => setSCheckIn(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all" /></div>
-                  <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Check-out</label><input type="date" value={sCheckOut} onChange={(e) => setSCheckOut(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all" /></div>
+                  <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Check-in</label><input type="date" value={sCheckIn} onChange={(e) => setSCheckIn(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm [color-scheme:light] dark:[color-scheme:dark]" /></div>
+                  <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Check-out</label><input type="date" value={sCheckOut} onChange={(e) => setSCheckOut(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm [color-scheme:light] dark:[color-scheme:dark]" /></div>
                 </div>
 
                 <div className="pt-2 border-t border-gray-100 dark:border-gray-800">
@@ -1419,11 +1419,11 @@ export const LogisticsView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                 <div className="space-y-4 p-4 bg-gray-50/50 dark:bg-gray-800/30 rounded-2xl border border-gray-100 dark:border-gray-800">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Local Retirada</label><input type="text" value={crPickupLoc} onChange={(e) => setCrPickupLoc(e.target.value)} placeholder="Aeroporto" className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none text-xs" /></div>
-                    <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Data/Hora</label><input type="datetime-local" value={crPickupTime} onChange={(e) => setCrPickupTime(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none text-[10px]" /></div>
+                    <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Data/Hora</label><input type="date" value={crPickupTime} onChange={(e) => setCrPickupTime(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none text-[10px] [color-scheme:light] dark:[color-scheme:dark]" /></div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-gray-100 dark:border-gray-800 pt-4">
                     <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Local Devolução</label><input type="text" value={crDropoffLoc} onChange={(e) => setCrDropoffLoc(e.target.value)} placeholder="Centro" className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none text-xs" /></div>
-                    <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Data/Hora</label><input type="datetime-local" value={crDropoffTime} onChange={(e) => setCrDropoffTime(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none text-[10px]" /></div>
+                    <div><label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Data/Hora</label><input type="date" value={crDropoffTime} onChange={(e) => setCrDropoffTime(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none text-[10px] [color-scheme:light] dark:[color-scheme:dark]" /></div>
                   </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1531,8 +1531,8 @@ export const LogisticsView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
                 <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Seguradora / Provedor</label><input type="text" value={insProvider} onChange={(e) => setInsProvider(e.target.value)} placeholder="Assist Card, Allianz..." className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm" required /></div>
                 <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Número da Apólice</label><input type="text" value={insPolicy} onChange={(e) => setInsPolicy(e.target.value)} placeholder="123456789" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm" /></div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Início Cobertura</label><input type="date" value={insStart} onChange={(e) => setInsStart(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none text-xs" /></div>
-                  <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Fim Cobertura</label><input type="date" value={insEnd} onChange={(e) => setInsEnd(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none text-xs" /></div>
+                  <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Início Cobertura</label><input type="date" value={insStart} onChange={(e) => setInsStart(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none text-xs [color-scheme:light] dark:[color-scheme:dark]" /></div>
+                  <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Fim Cobertura</label><input type="date" value={insEnd} onChange={(e) => setInsEnd(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none text-xs [color-scheme:light] dark:[color-scheme:dark]" /></div>
                 </div>
                 <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Contato de Emergência</label><input type="text" value={insContact} onChange={(e) => setInsContact(e.target.value)} placeholder="+55 (11) 0800..." className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm" /></div>
                 <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg transition-all mt-4">Salvar Seguro</button>
