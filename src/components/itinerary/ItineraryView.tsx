@@ -193,75 +193,89 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ groupId, currentUs
           </div>
         ) : (
           <div className="space-y-8">
-            {days.map((day, index) => (
-              <div key={day.dateKey} className="relative pl-8 md:pl-10">
-                {/* Timeline line */}
-                <div className={cn(
-                  "absolute left-[11px] md:left-[13px] top-6 w-0.5 bg-gray-200 dark:bg-gray-800",
-                  index === days.length - 1 ? "bottom-0" : "-bottom-8"
-                )}></div>
+            {days.map((day, index) => {
+              const isToday = new Date(day.dateKey).toLocaleDateString('pt-BR') === new Date().toLocaleDateString('pt-BR');
 
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-                  <div className="flex items-center gap-4">
-                    <div className="absolute left-0 w-6 h-6 md:w-7 md:h-7 bg-indigo-600 rounded-full flex items-center justify-center border-4 border-white dark:border-gray-950 z-10">
-                      <Calendar className="w-2.5 h-2.5 md:w-3 md:h-3 text-white" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-                        {new Date(day.dateKey).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })}
-                      </h3>
-                      {day.title && <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">{day.title}</p>}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => { setSelectedDayKey(day.dateKey); setIsAddActivityModalOpen(true); }} className="p-2 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl transition-all">
-                      <Plus className="w-5 h-5" />
-                    </button>
-                    <button onClick={() => handleDeleteDay(day)} className="p-2 hover:bg-red-50 dark:hover:bg-red-900/30 text-red-400 rounded-xl transition-all">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
+              return (
+                <div key={day.dateKey} className="relative pl-8 md:pl-10">
+                  {/* Timeline line */}
+                  <div className={cn(
+                    "absolute left-[11px] md:left-[13px] top-6 w-0.5 bg-gray-200 dark:bg-gray-800",
+                    index === days.length - 1 ? "bottom-0" : "-bottom-8"
+                  )}></div>
 
-                <div className="space-y-4 pl-0">
-                  {day.activities.map((activity) => (
-                    <div key={activity.id} className="group relative pl-2 md:pl-4">
-                      {/* Activity Dot linking to the absolute line of the day */}
-                      <div className="absolute -left-[27px] md:-left-[23px] top-[1.3rem] w-3 h-3 bg-indigo-100 dark:bg-indigo-900/50 border-2 border-indigo-400 dark:border-indigo-500 rounded-full z-10"></div>
-                      <div className="bg-white dark:bg-gray-900 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm transition-all hover:shadow-md hover:border-indigo-100 dark:hover:border-indigo-900/30">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex items-start gap-4">
-                            <div className="p-2.5 bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 rounded-xl group-hover:bg-indigo-50 dark:group-hover:bg-indigo-900/30 group-hover:text-indigo-600 transition-colors">
-                              {getActivityIcon(activity.type)}
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2 mb-1">
-                                {activity.time && <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400">{activity.time}</span>}
-                                <h4 className="font-semibold text-gray-900 dark:text-white">{activity.title}</h4>
-                              </div>
-                              {activity.location && (
-                                <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
-                                  <MapPin className="w-3 h-3" />
-                                  <span>{activity.location}</span>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                          <button onClick={() => handleDeleteActivity(activity.id)} className="opacity-0 group-hover:opacity-100 p-2 text-gray-400 hover:text-red-500 transition-all">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
+                  <div className={cn(
+                    "flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 p-4 rounded-3xl transition-colors border-2",
+                    isToday ? "bg-emerald-50/50 dark:bg-emerald-900/20 border-emerald-500/30" : "border-transparent"
+                  )}>
+                    <div className="flex items-center gap-4">
+                      <div className={cn(
+                        "absolute left-0 w-6 h-6 md:w-7 md:h-7 rounded-full flex items-center justify-center border-4 border-white dark:border-gray-950 z-10 shadow-sm",
+                        isToday ? "bg-emerald-500 w-7 h-7 md:w-8 md:h-8 -ml-0.5" : "bg-indigo-600"
+                      )}>
+                        <Calendar className={cn(
+                          "text-white",
+                          isToday ? "w-3 h-3 md:w-3.5 md:h-3.5" : "w-2.5 h-2.5 md:w-3 md:h-3"
+                        )} />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                          {new Date(day.dateKey).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })}
+                          {isToday && <span className="text-[10px] uppercase font-black bg-emerald-500 text-white px-2 py-0.5 rounded-full shadow-sm ml-2">Hoje</span>}
+                        </h3>
+                        {day.title && <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">{day.title}</p>}
                       </div>
                     </div>
-                  ))}
-                  {day.activities.length === 0 && (
-                    <div className="py-4 text-center bg-gray-50/50 dark:bg-gray-800/20 rounded-2xl border border-dashed border-gray-200 dark:border-gray-800">
-                      <p className="text-xs text-gray-400 italic">Nenhuma atividade para este dia.</p>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => { setSelectedDayKey(day.dateKey); setIsAddActivityModalOpen(true); }} className="p-2 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl transition-all">
+                        <Plus className="w-5 h-5" />
+                      </button>
+                      <button onClick={() => handleDeleteDay(day)} className="p-2 hover:bg-red-50 dark:hover:bg-red-900/30 text-red-400 rounded-xl transition-all">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
-                  )}
+                  </div>
+
+                  <div className="space-y-4 pl-0">
+                    {day.activities.map((activity) => (
+                      <div key={activity.id} className="group relative pl-2 md:pl-4">
+                        {/* Activity Dot linking to the absolute line of the day */}
+                        <div className="absolute -left-[27px] md:-left-[23px] top-[1.3rem] w-3 h-3 bg-indigo-100 dark:bg-indigo-900/50 border-2 border-indigo-400 dark:border-indigo-500 rounded-full z-10"></div>
+                        <div className="bg-white dark:bg-gray-900 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm transition-all hover:shadow-md hover:border-indigo-100 dark:hover:border-indigo-900/30">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex items-start gap-4">
+                              <div className="p-2.5 bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 rounded-xl group-hover:bg-indigo-50 dark:group-hover:bg-indigo-900/30 group-hover:text-indigo-600 transition-colors">
+                                {getActivityIcon(activity.type)}
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2 mb-1">
+                                  {activity.time && <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400">{activity.time}</span>}
+                                  <h4 className="font-semibold text-gray-900 dark:text-white">{activity.title}</h4>
+                                </div>
+                                {activity.location && (
+                                  <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                                    <MapPin className="w-3 h-3" />
+                                    <span>{activity.location}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <button onClick={() => handleDeleteActivity(activity.id)} className="opacity-0 group-hover:opacity-100 p-2 text-gray-400 hover:text-red-500 transition-all">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {day.activities.length === 0 && (
+                      <div className="py-4 text-center bg-gray-50/50 dark:bg-gray-800/20 rounded-2xl border border-dashed border-gray-200 dark:border-gray-800">
+                        <p className="text-xs text-gray-400 italic">Nenhuma atividade para este dia.</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
