@@ -727,7 +727,7 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ groupType = "group", g
                   )}
                 </div>
 
-                {!isSolo && totalSharesInForm > 0 && (
+                {groupType === "group" && totalSharesInForm > 0 && (
                   <div className="bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-2xl flex items-center justify-between">
                     <div>
                       <p className="text-[10px] text-indigo-600 dark:text-indigo-400 uppercase font-bold tracking-wider">Total Calculado</p>
