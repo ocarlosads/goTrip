@@ -26,6 +26,8 @@ interface Group {
   image?: string;
   inviteCode: string;
   memberCount: number;
+  startDate?: string;
+  endDate?: string;
   nextTripDate?: string;
   userBalance: number;
 }
@@ -930,9 +932,11 @@ function GroupCard({ group, onClick }: { group: Group, onClick: () => void, key?
             </span>
           </div>
           <div className="flex flex-col items-end">
-            <span className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500">Próxima Data</span>
+            <span className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500">Data da Viagem</span>
             <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
-              {group.nextTripDate ? new Date(group.nextTripDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) : "A definir"}
+              {group.startDate && group.endDate
+                ? `${new Date(group.startDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })} - ${new Date(group.endDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}`
+                : group.nextTripDate ? new Date(group.nextTripDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) : "A definir"}
             </span>
           </div>
         </div>
@@ -1009,11 +1013,17 @@ function GroupDetailView({ group, onBack, onLeave, user }: { group: Group, onBac
   const [groupData, setGroupData] = useState<any>(null);
   const [isLoadingInitial, setIsLoadingInitial] = useState(true);
 
-  // Edit Image State
-  const [isEditImageModalOpen, setIsEditImageModalOpen] = useState(false);
+  // Group Settings State
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [newImageLink, setNewImageLink] = useState(group.image);
-  const [isSavingImage, setIsSavingImage] = useState(false);
+  const [newStartDate, setNewStartDate] = useState(group.startDate ? new Date(group.startDate).toISOString().split('T')[0] : '');
+  const [newEndDate, setNewEndDate] = useState(group.endDate ? new Date(group.endDate).toISOString().split('T')[0] : '');
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+
   const [currentGroupImage, setCurrentGroupImage] = useState(group.image);
+  const [currentGroupStartDate, setCurrentGroupStartDate] = useState(group.startDate);
+  const [currentGroupEndDate, setCurrentGroupEndDate] = useState(group.endDate);
 
   // Pre-fetch all group data
   useEffect(() => {
@@ -1052,24 +1062,53 @@ function GroupDetailView({ group, onBack, onLeave, user }: { group: Group, onBac
     }
   };
 
-  const handleUpdateImage = async (e: React.FormEvent) => {
+  const handleUpdateSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSavingImage(true);
+    setIsSavingSettings(true);
     try {
-      const res = await apiFetch(`/api/groups/${group.id}/image`, {
-        method: "PATCH",
+      const res = await apiFetch(`/api/groups/${group.id}/settings`, {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: newImageLink }),
+        body: JSON.stringify({
+          image: newImageLink,
+          startDate: newStartDate || null,
+          endDate: newEndDate || null
+        }),
       });
       if (res.ok) {
         const updated = await res.json();
         setCurrentGroupImage(updated.image);
-        setIsEditImageModalOpen(false);
+        setCurrentGroupStartDate(updated.startDate);
+        setCurrentGroupEndDate(updated.endDate);
+        setIsSettingsModalOpen(false);
+        showToast("Configurações atualizadas!", "success");
+      } else {
+        showToast("Você não tem permissão para editar", "error");
       }
     } catch (err) {
-      console.error("Erro ao atualizar imagem:", err);
+      console.error("Erro ao atualizar configurações:", err);
+      showToast("Falha ao salvar", "error");
     } finally {
-      setIsSavingImage(false);
+      setIsSavingSettings(false);
+    }
+  };
+
+  const handleGroupImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingImage(true);
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const uploadRes = await apiFetch("/api/upload", { method: "POST", body: formData });
+      if (uploadRes.ok) {
+        const data = await uploadRes.json();
+        setNewImageLink(data.url);
+      }
+    } catch {
+      showToast("Falha no envio da imagem", "error");
+    } finally {
+      setIsUploadingImage(false);
     }
   };
 
@@ -1082,16 +1121,22 @@ function GroupDetailView({ group, onBack, onLeave, user }: { group: Group, onBac
         >
           <ArrowLeft className="w-4 h-4" /> Voltar para Viagens
         </button>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <button
+            onClick={() => setIsSettingsModalOpen(true)}
+            className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 px-4 py-2 rounded-xl text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all"
+          >
+            <Settings className="w-3.5 h-3.5" /> Editar
+          </button>
           <button
             onClick={() => setIsLeaveModalOpen(true)}
             className="flex items-center gap-2 bg-red-50 dark:bg-red-900/20 px-4 py-2 rounded-xl text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 transition-all border border-red-100 dark:border-red-900/30"
           >
-            <LogOut className="w-3.5 h-3.5" /> Sair da Viagem
+            <LogOut className="w-3.5 h-3.5" /> Sair
           </button>
           <button
             onClick={copyId}
-            className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 px-4 py-2 rounded-xl text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all"
+            className="flex items-center gap-2 bg-indigo-50 dark:bg-indigo-900/30 px-4 py-2 rounded-xl text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-all border border-indigo-100 dark:border-indigo-900/30"
           >
             Código: {group.inviteCode} <Plus className="w-3 h-3 rotate-45" />
           </button>
@@ -1137,6 +1182,102 @@ function GroupDetailView({ group, onBack, onLeave, user }: { group: Group, onBac
                   Cancelar
                 </button>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Settings Modal */}
+      <AnimatePresence>
+        {isSettingsModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsSettingsModalOpen(false)}
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative bg-white dark:bg-gray-900 w-full max-w-lg rounded-3xl shadow-2xl p-8 transition-colors"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                  <Settings className="w-6 h-6 text-indigo-600 dark:text-indigo-400" /> Configurações
+                </h2>
+                <button onClick={() => setIsSettingsModalOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full">
+                  <X className="w-6 h-6 text-gray-400" />
+                </button>
+              </div>
+
+              <form className="space-y-6" onSubmit={handleUpdateSettings}>
+                {/* Imagem do Grupo */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Imagem de Capa</label>
+                  <div className="flex items-center gap-4">
+                    <img
+                      src={newImageLink || currentGroupImage}
+                      alt="Capa do Grupo"
+                      className="w-20 h-20 rounded-2xl object-cover bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700"
+                      referrerPolicy="no-referrer"
+                    />
+                    <div className="flex-1 space-y-2">
+                      <div className="relative">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleGroupImageUpload}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        />
+                        <button type="button" className="w-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold py-2.5 px-4 rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 text-sm">
+                          {isUploadingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : "Enviar Nova Foto"}
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Dimensão recomendada: 1200x800px. JPG ou PNG.</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Período da Viagem */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-2">
+                      <Calendar className="w-4 h-4" /> Início
+                    </label>
+                    <input
+                      type="date"
+                      value={newStartDate}
+                      onChange={(e) => setNewStartDate(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-2">
+                      <Calendar className="w-4 h-4" /> Fim
+                    </label>
+                    <input
+                      type="date"
+                      value={newEndDate}
+                      onChange={(e) => setNewEndDate(e.target.value)}
+                      min={newStartDate}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-colors"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    disabled={isSavingSettings || isUploadingImage}
+                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                  >
+                    {isSavingSettings ? <Loader2 className="w-5 h-5 animate-spin" /> : "Salvar Configurações"}
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </div>
         )}

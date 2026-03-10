@@ -285,6 +285,40 @@ async function startServer() {
     }
   });
 
+  app.put("/api/groups/:groupId/settings", authenticate, async (req: any, res) => {
+    const { groupId } = req.params;
+    const { image, startDate, endDate } = req.body;
+    try {
+      const groupInfo = await prisma.group.findUnique({ where: { id: groupId } });
+      if (!groupInfo) {
+        return res.status(404).json({ error: "Group not found" });
+      }
+
+      const updateData: any = {};
+      if (image !== undefined) updateData.image = image;
+
+      if (startDate !== undefined) {
+        if (startDate === null) updateData.startDate = null;
+        else updateData.startDate = new Date(startDate.includes("T") ? startDate : `${startDate}T12:00:00Z`);
+      }
+
+      if (endDate !== undefined) {
+        if (endDate === null) updateData.endDate = null;
+        else updateData.endDate = new Date(endDate.includes("T") ? endDate : `${endDate}T12:00:00Z`);
+      }
+
+      const updatedGroup = await (prisma.group as any).update({
+        where: { id: groupId },
+        data: updateData
+      });
+
+      res.json(updatedGroup);
+    } catch (err) {
+      console.error("Error updating group settings:", err);
+      res.status(500).json({ error: "Failed to update settings" });
+    }
+  });
+
   app.get("/api/groups/invite/:code", async (req, res) => {
     const { code } = req.params;
     try {
