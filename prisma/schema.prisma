@@ -63,7 +63,7 @@ model Membership {
   groupId  String
   role     String   @default("MEMBER")
   joinedAt DateTime @default(now())
-  group    Group    @relation(fields: [groupId], references: [id])
+  group    Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
   user     User     @relation(fields: [userId], references: [id])
 
   @@unique([userId, groupId])
@@ -77,7 +77,7 @@ model Destination {
   image       String?
   status      String  @default("SUGGESTED")
   suggestedBy String
-  group       Group   @relation(fields: [groupId], references: [id])
+  group       Group   @relation(fields: [groupId], references: [id], onDelete: Cascade)
   votes       Vote[]
 }
 
@@ -89,7 +89,7 @@ model ItineraryItem {
   location String?
   date     DateTime
   type     String   @default("activity")
-  group    Group    @relation(fields: [groupId], references: [id])
+  group    Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
 }
 
 model Flight {
@@ -104,7 +104,7 @@ model Flight {
   destination   String?
   createdAt     DateTime          @default(now())
   creator       User              @relation(fields: [creatorId], references: [id])
-  group         Group             @relation(fields: [groupId], references: [id])
+  group         Group             @relation(fields: [groupId], references: [id], onDelete: Cascade)
   passengers    FlightPassenger[]
 }
 
@@ -133,7 +133,7 @@ model Stay {
   checkOut          DateTime?
   bookingVoucherUrl String?
   createdAt         DateTime     @default(now())
-  group             Group        @relation(fields: [groupId], references: [id])
+  group             Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
   members           StayMember[]
 }
 
@@ -153,7 +153,7 @@ model Vote {
   userId        String
   destinationId String
   value         Int         @default(1)
-  destination   Destination @relation(fields: [destinationId], references: [id])
+  destination   Destination @relation(fields: [destinationId], references: [id], onDelete: Cascade)
   user          User        @relation(fields: [userId], references: [id])
 
   @@unique([userId, destinationId])
@@ -167,7 +167,7 @@ model Expense {
   currency    String         @default("BRL")
   date        DateTime       @default(now())
   paidById    String
-  group       Group          @relation(fields: [groupId], references: [id])
+  group       Group          @relation(fields: [groupId], references: [id], onDelete: Cascade)
   paidBy      User           @relation("Payer", fields: [paidById], references: [id])
   splits      ExpenseSplit[]
 }
@@ -179,7 +179,7 @@ model ExpenseSplit {
   amount    Float
   shares    Int     @default(1)
   isPaid    Boolean @default(false)
-  expense   Expense @relation(fields: [expenseId], references: [id])
+  expense   Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
   user      User    @relation(fields: [userId], references: [id])
 
   @@unique([expenseId, userId])
@@ -206,7 +206,7 @@ model CarRental {
   confirmationCode String?
   bookingVoucherUrl String?
   createdAt        DateTime          @default(now())
-  group            Group             @relation(fields: [groupId], references: [id])
+  group            Group             @relation(fields: [groupId], references: [id], onDelete: Cascade)
   members          CarRentalMember[]
 }
 

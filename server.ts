@@ -388,6 +388,28 @@ async function startServer() {
     }
   });
 
+  app.delete("/api/groups/:groupId", authenticate, async (req: any, res) => {
+    const { groupId } = req.params;
+    try {
+      const dbUser = await prisma.user.findUnique({ where: { email: req.user.email } });
+      const isAdmin = (dbUser as any)?.role === "ADMIN";
+
+      if (!isAdmin) {
+        return res.status(403).json({ error: "Acesso negado. Apenas administradores podem excluir grupos." });
+      }
+
+      await (prisma.group as any).delete({
+        where: { id: groupId }
+      });
+
+      console.log(`[GROUP_DELETE] Admin ${(dbUser as any).id} deleted group ${groupId}`);
+      res.json({ success: true, message: "Grupo excluído com sucesso." });
+    } catch (err) {
+      console.error("Error deleting group:", err);
+      res.status(500).json({ error: "Erro ao excluir o grupo." });
+    }
+  });
+
   app.get("/api/groups", authenticate, async (req: any, res) => {
     try {
       const isAdmin = req.user.role === "ADMIN";

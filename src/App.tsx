@@ -5,7 +5,7 @@ import { ExpenseList } from "./components/expenses/ExpenseList";
 import { ItineraryView } from "./components/itinerary/ItineraryView";
 import { LogisticsView } from "./components/itinerary/LogisticsView";
 import DateInput from "./components/ui/DateInput";
-import { Loader2, Plus, Users, MapPin, Wallet, Settings, LogOut, Menu, X, ArrowLeft, Shield, TrendingUp, UserPlus, DollarSign, Calendar, Moon, Sun, Bell, CreditCard, ShieldCheck, Navigation } from "lucide-react";
+import { Loader2, Plus, Users, MapPin, Wallet, Settings, LogOut, Menu, X, ArrowLeft, Shield, TrendingUp, UserPlus, DollarSign, Calendar, Moon, Sun, Bell, CreditCard, ShieldCheck, Navigation, Trash2, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn, formatCurrency } from "./lib/utils";
 import { apiFetch, setAuthToken, removeAuthToken } from "./lib/api";
@@ -667,7 +667,28 @@ function DashboardView({ onSelectGroup, user }: { onSelectGroup: (g: Group) => v
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {groups.map(group => (
-          <GroupCard key={group.id} group={group} onClick={() => onSelectGroup(group)} />
+          <GroupCard
+            key={group.id}
+            group={group}
+            onClick={() => onSelectGroup(group)}
+            isAdmin={user?.role === "ADMIN"}
+            onDelete={async () => {
+              if (window.confirm(`Tem certeza que deseja excluir permanentemente o grupo "${group.name}"? Esta ação não pode ser desfeita.`)) {
+                try {
+                  const res = await apiFetch(`/api/groups/${group.id}`, { method: "DELETE" });
+                  if (res.ok) {
+                    showToast("Grupo excluído com sucesso!", "success");
+                    setGroups(groups.filter(g => g.id !== group.id));
+                  } else {
+                    const error = await res.json();
+                    showToast(error.error || "Erro ao excluir grupo", "error");
+                  }
+                } catch (err) {
+                  showToast("Falha ao se comunicar com o servidor", "error");
+                }
+              }
+            }}
+          />
         ))}
       </div>
 
@@ -892,7 +913,7 @@ function JoinGroupModal({ isOpen, onClose, onJoin, joinId, setJoinId, isJoining 
   );
 }
 
-function GroupCard({ group, onClick }: { group: Group, onClick: () => void, key?: string }) {
+function GroupCard({ group, onClick, isAdmin, onDelete }: { group: Group, onClick: () => void, isAdmin?: boolean, onDelete?: () => void, key?: string }) {
   const typeLabels = {
     solo: "Solo",
     couple: "Casal",
@@ -928,11 +949,25 @@ function GroupCard({ group, onClick }: { group: Group, onClick: () => void, key?
         <div className="absolute top-4 left-4 bg-indigo-600 text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider shadow-sm">
           {typeLabels[group.type]}
         </div>
-        <div className="absolute top-4 right-4 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm px-3 py-1 rounded-full flex items-center gap-1.5 shadow-sm">
-          <Users className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-          <span className="text-xs font-bold text-gray-900 dark:text-white">
-            {group.memberCount} {group.memberCount === 1 ? 'membro' : 'membros'}
-          </span>
+        <div className="absolute top-4 right-4 flex items-center gap-2">
+          {isAdmin && onDelete && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+              className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-full shadow-lg transition-transform hover:scale-110"
+              title="Excluir Grupo"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
+          <div className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm px-3 py-1 rounded-full flex items-center gap-1.5 shadow-sm">
+            <Users className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+            <span className="text-xs font-bold text-gray-900 dark:text-white">
+              {group.memberCount} {group.memberCount === 1 ? 'membro' : 'membros'}
+            </span>
+          </div>
         </div>
       </div>
       <div className="p-6">
