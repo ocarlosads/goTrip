@@ -959,11 +959,40 @@ function GroupCard({ group, onClick }: { group: Group, onClick: () => void, key?
 }
 
 function AdminDashboardView() {
-  const stats = [
-    { label: "Total de Usuários", value: "1,284", icon: <UserPlus className="w-5 h-5" />, color: "bg-blue-500" },
-    { label: "Grupos Ativos", value: "452", icon: <Users className="w-5 h-5" />, color: "bg-indigo-500" },
-    { label: "Viagens Realizadas", value: "892", icon: <MapPin className="w-5 h-5" />, color: "bg-emerald-500" },
-    { label: "Check-ins Hoje", value: "48", icon: <Calendar className="w-5 h-5" />, color: "bg-amber-500" },
+  const [stats, setStats] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const res = await apiFetch("/api/admin/stats");
+        if (res.ok) {
+          const data = await res.json();
+          setStats(data);
+        }
+      } catch (err) {
+        console.error("Error fetching admin stats:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchStats();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 space-y-4">
+        <Loader2 className="w-10 h-10 animate-spin text-indigo-600" />
+        <p className="font-medium text-gray-500 dark:text-gray-400">Carregando métricas...</p>
+      </div>
+    );
+  }
+
+  const statCards = [
+    { label: "Total de Usuários", value: stats?.usersCount || 0, icon: <UserPlus className="w-5 h-5" />, color: "bg-blue-500" },
+    { label: "Grupos Ativos", value: stats?.groupsCount || 0, icon: <Users className="w-5 h-5" />, color: "bg-indigo-500" },
+    { label: "Sugestões de Destinos", value: stats?.totalDestinations || 0, icon: <MapPin className="w-5 h-5" />, color: "bg-emerald-500" },
+    { label: "Movimentação Total", value: formatCurrency(stats?.totalExpenses || 0), icon: <DollarSign className="w-5 h-5" />, color: "bg-amber-500" },
   ];
 
   return (
@@ -974,7 +1003,7 @@ function AdminDashboardView() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat) => (
+        {statCards.map((stat) => (
           <div key={stat.label} className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm transition-colors">
             <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-white mb-4", stat.color)}>
               {stat.icon}
@@ -988,17 +1017,13 @@ function AdminDashboardView() {
       <div className="bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden transition-colors">
         <div className="p-6 border-b border-gray-50 dark:border-gray-800 flex items-center justify-between">
           <h3 className="font-bold text-gray-900 dark:text-white">Últimos Usuários Registrados</h3>
-          <button className="text-indigo-600 dark:text-indigo-400 text-sm font-bold hover:underline">Ver todos</button>
+          <span className="text-gray-400 text-sm">Mostrando os 5 mais recentes</span>
         </div>
         <div className="divide-y divide-gray-50 dark:divide-gray-800">
-          {[
-            { name: "Carlos Oliveira", email: "carlos@gmail.com", date: "Hoje" },
-            { name: "Mariana Costa", email: "mari@outlook.com", date: "Ontem" },
-            { name: "Roberto Santos", email: "beto@uol.com.br", date: "2 dias atrás" },
-          ].map((u, i) => (
+          {stats?.recentUsers?.map((u: any, i: number) => (
             <div key={i} className="p-4 flex items-center justify-between px-6">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center font-bold text-gray-500 dark:text-gray-400">
+                <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center font-bold text-indigo-600 dark:text-indigo-400">
                   {u.name[0]}
                 </div>
                 <div>
@@ -1007,10 +1032,15 @@ function AdminDashboardView() {
                 </div>
               </div>
               <div className="flex items-center gap-4">
-                <span className="text-xs text-gray-400 dark:text-gray-500">{u.date}</span>
+                <span className="text-xs text-gray-400 dark:text-gray-500">
+                  {new Date(u.date).toLocaleDateString('pt-BR')}
+                </span>
               </div>
             </div>
           ))}
+          {(!stats?.recentUsers || stats.recentUsers.length === 0) && (
+            <div className="p-8 text-center text-gray-500">Nenhum usuário encontrado.</div>
+          )}
         </div>
       </div>
     </div>

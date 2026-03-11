@@ -1135,6 +1135,42 @@ async function startServer() {
     res.json({ success: true });
   });
 
+  // ─── Admin Endpoints ──────────────────────────────────────────────────────
+  app.get("/api/admin/stats", authenticate, async (req: any, res) => {
+    if (req.user.email !== "admin@checktrip.com.br") {
+      return res.status(403).json({ error: "Access denied. Admin only." });
+    }
+
+    try {
+      const [usersCount, groupsCount, totalExpenses, recentUsers, totalDestinations] = await Promise.all([
+        prisma.user.count(),
+        prisma.group.count(),
+        prisma.expense.aggregate({ _sum: { amount: true } }),
+        prisma.user.findMany({
+          orderBy: { createdAt: "desc" },
+          take: 5,
+          select: { name: true, email: true, createdAt: true }
+        }),
+        prisma.destination.count(),
+      ]);
+
+      res.json({
+        usersCount,
+        groupsCount,
+        totalExpenses: totalExpenses._sum.amount || 0,
+        recentUsers: recentUsers.map(u => ({
+          name: u.name || u.email.split("@")[0],
+          email: u.email,
+          date: u.createdAt.toISOString()
+        })),
+        totalDestinations
+      });
+    } catch (err) {
+      console.error("Error fetching admin stats:", err);
+      res.status(500).json({ error: "Failed to fetch stats" });
+    }
+  });
+
   // ─── File Upload ────────────────────────────────────────────────────────
   app.post("/api/upload", authenticate, upload.single("file"), async (req: any, res) => {
     if (!req.file) return res.status(400).json({ error: "Nenhum arquivo enviado" });
