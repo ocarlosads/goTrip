@@ -17,6 +17,7 @@ interface User {
   name?: string;
   image?: string;
   identityDocUrl?: string;
+  role?: "USER" | "ADMIN";
 }
 
 interface Group {
@@ -47,7 +48,7 @@ export default function App() {
     return false;
   });
 
-  const isAdmin = user?.email === "admin@gotrip.app.br";
+  const isAdmin = user?.role === "ADMIN";
 
   useEffect(() => {
     const checkAuth = async () => {

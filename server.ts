@@ -97,11 +97,11 @@ async function startServer() {
         }
       });
 
-      const authToken = jwt.sign({ email: user.email, id: user.id }, JWT_SECRET, { expiresIn: "7d" });
+      const authToken = jwt.sign({ email: user.email, id: user.id, role: (user as any).role }, JWT_SECRET, { expiresIn: "7d" });
       res.cookie("auth_token", authToken, { httpOnly: true, secure: false, sameSite: "lax", maxAge: 7 * 24 * 60 * 60 * 1000 });
 
       console.log(`[AUTH] Usuário registrado diretamente: ${email}`);
-      res.json({ success: true, user: { email: user.email, id: user.id }, token: authToken });
+      res.json({ success: true, user: { email: user.email, id: user.id, role: (user as any).role }, token: authToken });
     } catch (err) {
       console.error("Register error:", err);
       res.status(500).json({ error: "Erro ao realizar cadastro" });
@@ -128,9 +128,9 @@ async function startServer() {
         // Deletar pendente
         await prisma.pendingUser.delete({ where: { email } });
 
-        const authToken = jwt.sign({ email: user.email, id: user.id }, JWT_SECRET, { expiresIn: "7d" });
+        const authToken = jwt.sign({ email: user.email, id: user.id, role: (user as any).role }, JWT_SECRET, { expiresIn: "7d" });
         res.cookie("auth_token", authToken, { httpOnly: true, secure: false, sameSite: "lax", maxAge: 7 * 24 * 60 * 60 * 1000 });
-        return res.json({ success: true, user: { email: user.email, id: user.id }, token: authToken });
+        return res.json({ success: true, user: { email: user.email, id: user.id, role: (user as any).role }, token: authToken });
       } else {
         return res.status(400).json({ error: "Código de verificação inválido" });
       }
@@ -157,9 +157,9 @@ async function startServer() {
         return res.status(400).json({ error: "Esta conta usa outro método de login" });
       }
 
-      const token = jwt.sign({ email: user.email, id: user.id }, JWT_SECRET, { expiresIn: "7d" });
+      const token = jwt.sign({ email: user.email, id: user.id, role: (user as any).role }, JWT_SECRET, { expiresIn: "7d" });
       res.cookie("auth_token", token, { httpOnly: true, secure: false, sameSite: "lax", maxAge: 7 * 24 * 60 * 60 * 1000 });
-      res.json({ user: { email: user.email, id: user.id, identityDocUrl: (user as any).identityDocUrl }, token });
+      res.json({ user: { email: user.email, id: user.id, role: (user as any).role, identityDocUrl: (user as any).identityDocUrl }, token });
     } catch (err) {
       console.error("Login error:", err);
       res.status(500).json({ error: "Erro ao fazer login" });
@@ -192,9 +192,9 @@ async function startServer() {
         });
       }
 
-      const token = jwt.sign({ email: user.email, id: user.id }, JWT_SECRET, { expiresIn: "7d" });
+      const token = jwt.sign({ email: user.email, id: user.id, role: (user as any).role }, JWT_SECRET, { expiresIn: "7d" });
       res.cookie("auth_token", token, { httpOnly: true, secure: false, sameSite: "lax", maxAge: 7 * 24 * 60 * 60 * 1000 });
-      res.json({ user: { email: user.email, id: user.id, name: user.name, image: user.image, identityDocUrl: (user as any).identityDocUrl }, token });
+      res.json({ user: { email: user.email, id: user.id, name: user.name, image: user.image, role: (user as any).role, identityDocUrl: (user as any).identityDocUrl }, token });
     } catch (err: any) {
       console.error("Google Auth Error Detail:", err.message, err.stack);
       res.status(401).json({ error: "Falha na autenticação com Google", details: err.message });
@@ -209,7 +209,14 @@ async function startServer() {
   app.get("/api/auth/me", authenticate, async (req: any, res) => {
     try {
       const dbUser = await prisma.user.findUnique({ where: { email: req.user.email } });
-      res.json({ user: { email: req.user.email, id: dbUser?.id || null, identityDocUrl: (dbUser as any)?.identityDocUrl || null } });
+      res.json({
+        user: {
+          email: req.user.email,
+          id: dbUser?.id || null,
+          role: (dbUser as any)?.role || "USER",
+          identityDocUrl: (dbUser as any)?.identityDocUrl || null
+        }
+      });
     } catch {
       res.json({ user: req.user });
     }
@@ -289,9 +296,13 @@ async function startServer() {
     const { groupId } = req.params;
     const { image, startDate, endDate } = req.body;
     try {
-      const groupInfo = await prisma.group.findUnique({ where: { id: groupId } });
-      if (!groupInfo) {
-        return res.status(404).json({ error: "Group not found" });
+      const isAdmin = req.user.role === "ADMIN";
+      const membership = await prisma.membership.findUnique({
+        where: { userId_groupId: { userId: req.user.id, groupId } }
+      });
+
+      if (!isAdmin && (!membership || (membership as any).role !== "OWNER")) {
+        return res.status(403).json({ error: "Forbidden. Only owners or admins can change settings." });
       }
 
       const updateData: any = {};
@@ -379,6 +390,29 @@ async function startServer() {
 
   app.get("/api/groups", authenticate, async (req: any, res) => {
     try {
+      const isAdmin = req.user.role === "ADMIN";
+
+      if (isAdmin) {
+        // Admin vê TUDO
+        const allGroups = await prisma.group.findMany({
+          include: { members: true },
+          orderBy: { createdAt: "desc" }
+        });
+        return res.json(allGroups.map(g => ({
+          id: g.id,
+          name: g.name,
+          description: g.description,
+          type: g.type,
+          inviteCode: g.inviteCode,
+          memberCount: g.members.length,
+          userBalance: 0,
+          image: g.image,
+          startDate: g.startDate,
+          endDate: g.endDate,
+        })));
+      }
+
+      // Usuário comum vê só os dele
       const user = await prisma.user.findUnique({
         where: { email: req.user.email },
         include: { memberships: { include: { group: { include: { members: true } } } } },
@@ -407,6 +441,12 @@ async function startServer() {
   app.get("/api/groups/:groupId/members", authenticate, async (req: any, res) => {
     const { groupId } = req.params;
     try {
+      const isAdmin = req.user.role === "ADMIN";
+      const membership = await prisma.membership.findUnique({
+        where: { userId_groupId: { userId: req.user.id, groupId } }
+      });
+      if (!isAdmin && !membership) return res.status(403).json({ error: "Forbidden" });
+
       const members = await prisma.membership.findMany({
         where: { groupId },
         include: { user: true },
@@ -439,17 +479,32 @@ async function startServer() {
   app.get("/api/groups/:groupId/data", authenticate, async (req: any, res) => {
     const { groupId } = req.params;
     try {
+      const isAdmin = req.user.role === "ADMIN";
+      const dbUser = await prisma.user.findUnique({ where: { email: req.user.email } });
+
+      // Validar acesso (admin ou membro)
+      const membership = await prisma.membership.findUnique({
+        where: { userId_groupId: { userId: dbUser?.id || "", groupId } }
+      });
+
+      if (!isAdmin && !membership) {
+        return res.status(403).json({ error: "Access denied. You are not a member of this group." });
+      }
+
+      // Consultas variam se for Admin (vê tudo de todos) ou Membro (vê os que participa)
+      const flightFilter: any = { groupId };
+      if (!isAdmin) {
+        flightFilter.OR = [
+          { creatorId: dbUser?.id || "" },
+          { passengers: { some: { user: { email: req.user.email } } } }
+        ];
+      }
+
       const [destinations, itinerary, flights, stays, expenses, group, carRentals, insurances] = await Promise.all([
         prisma.destination.findMany({ where: { groupId }, include: { votes: true } }),
         prisma.itineraryItem.findMany({ where: { groupId }, orderBy: [{ date: "asc" }, { time: "asc" }] }),
         prisma.flight.findMany({
-          where: {
-            groupId,
-            OR: [
-              { creatorId: (await prisma.user.findUnique({ where: { email: req.user.email } }))?.id || "" },
-              { passengers: { some: { user: { email: req.user.email } } } }
-            ]
-          },
+          where: flightFilter,
           include: { passengers: { include: { user: { select: { id: true, name: true, email: true } } } } },
           orderBy: { departureTime: "asc" }
         }),
@@ -473,8 +528,6 @@ async function startServer() {
         prisma.insurance.findMany({ where: { groupId }, orderBy: { startDate: "asc" } }),
       ]);
 
-      const user = await prisma.user.findUnique({ where: { email: req.user.email } });
-
       const formattedExpenses = expenses.map((exp) => ({
         id: exp.id,
         description: exp.description,
@@ -496,7 +549,7 @@ async function startServer() {
         description: d.description,
         image: d.image,
         votes: d.votes.reduce((sum, v) => sum + v.value, 0),
-        userVote: d.votes.find(v => v.userId === user?.id)?.value || 0
+        userVote: d.votes.find(v => v.userId === dbUser?.id)?.value || 0
       }));
 
       const formattedMembers = group?.members.map(m => ({
@@ -526,7 +579,13 @@ async function startServer() {
   app.get("/api/groups/:groupId/destinations", authenticate, async (req: any, res) => {
     const { groupId } = req.params;
     try {
-      const user = await prisma.user.findUnique({ where: { email: req.user.email } });
+      const isAdmin = req.user.role === "ADMIN";
+      const dbUser = await prisma.user.findUnique({ where: { email: req.user.email } });
+      const membership = await prisma.membership.findUnique({
+        where: { userId_groupId: { userId: dbUser?.id || "", groupId } }
+      });
+      if (!isAdmin && !membership) return res.status(403).json({ error: "Forbidden" });
+
       const destinations = await prisma.destination.findMany({
         where: { groupId }, include: { votes: true }, orderBy: { id: "asc" },
       });
@@ -537,7 +596,7 @@ async function startServer() {
         image: dest.image,
         status: dest.status,
         votes: dest.votes.reduce((sum, v) => sum + v.value, 0),
-        userVote: user ? (dest.votes.find((v) => v.userId === user.id)?.value || 0) : 0,
+        userVote: dbUser ? (dest.votes.find((v) => v.userId === dbUser.id)?.value || 0) : 0,
       }));
       res.json(formatted);
     } catch (err) {
@@ -553,8 +612,14 @@ async function startServer() {
     const destImage = image || defaultImage;
 
     try {
+      const isAdmin = req.user.role === "ADMIN";
       const dbUser = await prisma.user.findUnique({ where: { email: req.user.email } });
       if (!dbUser) return res.status(401).json({ error: "Unauthorized" });
+
+      const membership = await prisma.membership.findUnique({
+        where: { userId_groupId: { userId: dbUser.id, groupId } }
+      });
+      if (!isAdmin && !membership) return res.status(403).json({ error: "Forbidden" });
 
       const newDest = await prisma.destination.create({
         data: { groupId, name, description, image: destImage, suggestedBy: dbUser.id },
@@ -623,6 +688,12 @@ async function startServer() {
   app.get("/api/groups/:groupId/itinerary", authenticate, async (req: any, res) => {
     const { groupId } = req.params;
     try {
+      const isAdmin = req.user.role === "ADMIN";
+      const membership = await prisma.membership.findUnique({
+        where: { userId_groupId: { userId: req.user.id, groupId } }
+      });
+      if (!isAdmin && !membership) return res.status(403).json({ error: "Forbidden" });
+
       const items = await prisma.itineraryItem.findMany({
         where: { groupId },
         orderBy: [{ date: "asc" }, { time: "asc" }],
@@ -637,6 +708,11 @@ async function startServer() {
     const { groupId } = req.params;
     const { title, time, location, date, type } = req.body;
     try {
+      const isAdmin = req.user.role === "ADMIN";
+      const membership = await prisma.membership.findUnique({
+        where: { userId_groupId: { userId: req.user.id, groupId } }
+      });
+      if (!isAdmin && !membership) return res.status(403).json({ error: "Forbidden" });
       const item = await prisma.itineraryItem.create({
         data: { groupId, title, time: time || null, location: location || null, date: new Date(date.includes("T") ? date : date + "T12:00:00Z"), type: type || "activity" },
       });
@@ -675,15 +751,23 @@ async function startServer() {
   app.get("/api/groups/:groupId/flights", authenticate, async (req: any, res) => {
     const { groupId } = req.params;
     try {
-      const user = await prisma.user.findUnique({ where: { email: req.user.email } });
+      const isAdmin = req.user.role === "ADMIN";
+      const dbUser = await prisma.user.findUnique({ where: { email: req.user.email } });
+      const membership = await prisma.membership.findUnique({
+        where: { userId_groupId: { userId: dbUser?.id || "", groupId } }
+      });
+      if (!isAdmin && !membership) return res.status(403).json({ error: "Forbidden" });
+
+      const flightFilter: any = { groupId };
+      if (!isAdmin) {
+        flightFilter.OR = [
+          { creatorId: dbUser?.id },
+          { passengers: { some: { userId: dbUser?.id } } }
+        ];
+      }
+
       const flights = await prisma.flight.findMany({
-        where: {
-          groupId,
-          OR: [
-            { creatorId: user?.id },
-            { passengers: { some: { userId: user?.id } } }
-          ]
-        },
+        where: flightFilter,
         include: { passengers: { include: { user: { select: { id: true, name: true, email: true } } } } },
         orderBy: { departureTime: "asc" }
       });
@@ -695,8 +779,14 @@ async function startServer() {
     const { groupId } = req.params;
     const { number, airline, departureTime, arrivalTime, origin, destination, isRoundTrip, returnFlight, boardingPassUrl, rBoardingPassUrl, identityDocUrl, rIdentityDocUrl } = req.body;
     try {
-      const user = await prisma.user.findUnique({ where: { email: req.user.email } });
-      if (!user) return res.status(401).json({ error: "User not found" });
+      const isAdmin = req.user.role === "ADMIN";
+      const dbUser = await prisma.user.findUnique({ where: { email: req.user.email } });
+      if (!dbUser) return res.status(401).json({ error: "User not found" });
+
+      const membership = await prisma.membership.findUnique({
+        where: { userId_groupId: { userId: dbUser.id, groupId } }
+      });
+      if (!isAdmin && !membership) return res.status(403).json({ error: "Forbidden" });
 
       const flightsToCreate = [];
 
@@ -704,7 +794,7 @@ async function startServer() {
       const flight1 = await prisma.flight.create({
         data: {
           groupId,
-          creatorId: user.id,
+          creatorId: dbUser.id,
           number,
           airline,
           departureTime: departureTime ? new Date(departureTime) : null,
@@ -713,7 +803,7 @@ async function startServer() {
           destination,
           passengers: {
             create: {
-              userId: user.id,
+              userId: dbUser.id,
               boardingPassUrl: boardingPassUrl || null,
               identityDocUrl: identityDocUrl || null,
             }
@@ -728,7 +818,7 @@ async function startServer() {
         const flight2 = await prisma.flight.create({
           data: {
             groupId,
-            creatorId: user.id,
+            creatorId: dbUser.id,
             number: returnFlight.number,
             airline: returnFlight.airline,
             departureTime: returnFlight.departureTime ? new Date(returnFlight.departureTime) : null,
@@ -737,7 +827,7 @@ async function startServer() {
             destination: returnFlight.destination,
             passengers: {
               create: {
-                userId: user.id,
+                userId: dbUser.id,
                 boardingPassUrl: rBoardingPassUrl || null,
                 identityDocUrl: rIdentityDocUrl || null,
               }
@@ -834,6 +924,12 @@ async function startServer() {
   app.get("/api/groups/:groupId/stays", authenticate, async (req: any, res) => {
     const { groupId } = req.params;
     try {
+      const isAdmin = req.user.role === "ADMIN";
+      const membership = await prisma.membership.findUnique({
+        where: { userId_groupId: { userId: req.user.id, groupId } }
+      });
+      if (!isAdmin && !membership) return res.status(403).json({ error: "Forbidden" });
+
       const stays = await prisma.stay.findMany({ where: { groupId }, orderBy: { checkIn: "asc" } });
       res.json(stays);
     } catch { res.status(500).json({ error: "Failed to fetch stays" }); }
@@ -843,6 +939,11 @@ async function startServer() {
     const { groupId } = req.params;
     const { name, address, lat, lng, googlePlaceId, checkIn, checkOut, bookingVoucherUrl } = req.body;
     try {
+      const isAdmin = req.user.role === "ADMIN";
+      const membership = await prisma.membership.findUnique({
+        where: { userId_groupId: { userId: req.user.id, groupId } }
+      });
+      if (!isAdmin && !membership) return res.status(403).json({ error: "Forbidden" });
       const stay = await prisma.stay.create({
         data: {
           groupId, name, address, bookingVoucherUrl,
@@ -912,6 +1013,11 @@ async function startServer() {
     const { groupId } = req.params;
     const { company, model, pickupLocation, pickupTime, dropoffLocation, dropoffTime, confirmationCode, bookingVoucherUrl } = req.body;
     try {
+      const isAdmin = req.user.role === "ADMIN";
+      const membership = await prisma.membership.findUnique({
+        where: { userId_groupId: { userId: req.user.id, groupId } }
+      });
+      if (!isAdmin && !membership) return res.status(403).json({ error: "Forbidden" });
       const rental = await prisma.carRental.create({
         data: {
           groupId, company, model, pickupLocation, dropoffLocation, confirmationCode, bookingVoucherUrl,
@@ -992,6 +1098,11 @@ async function startServer() {
     const { groupId } = req.params;
     const { provider, policyNumber, startDate, endDate, contactInfo } = req.body;
     try {
+      const isAdmin = req.user.role === "ADMIN";
+      const membership = await prisma.membership.findUnique({
+        where: { userId_groupId: { userId: req.user.id, groupId } }
+      });
+      if (!isAdmin && !membership) return res.status(403).json({ error: "Forbidden" });
       const insurance = await prisma.insurance.create({
         data: {
           groupId, provider, policyNumber, contactInfo,
@@ -1036,6 +1147,12 @@ async function startServer() {
   app.get("/api/groups/:groupId/expenses", authenticate, async (req: any, res) => {
     const { groupId } = req.params;
     try {
+      const isAdmin = req.user.role === "ADMIN";
+      const membership = await prisma.membership.findUnique({
+        where: { userId_groupId: { userId: req.user.id, groupId } }
+      });
+      if (!isAdmin && !membership) return res.status(403).json({ error: "Forbidden" });
+
       const expenses = await prisma.expense.findMany({
         where: { groupId },
         include: { paidBy: true, splits: { include: { user: true } } },
@@ -1137,7 +1254,7 @@ async function startServer() {
 
   // ─── Admin Endpoints ──────────────────────────────────────────────────────
   app.get("/api/admin/stats", authenticate, async (req: any, res) => {
-    if (req.user.email !== "admin@gotrip.app.br") {
+    if (req.user.role !== "ADMIN") {
       return res.status(403).json({ error: "Access denied. Admin only." });
     }
 
