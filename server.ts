@@ -239,9 +239,19 @@ async function startServer() {
 
   // ─── Group Endpoints ───────────────────────────────────────────────────────
   app.post("/api/groups", authenticate, async (req: any, res) => {
-    const { name, description, type, image, startDate, endDate } = req.body;
-    const inviteCode = Math.random().toString(36).substring(2, 9).toUpperCase();
-    const defaultImage = "https://images.unsplash.com/photo-1483729558449-99ef09a8c325?q=80&w=1470&auto=format&fit=crop";
+    const BRAZIL_DEFAULT_IMAGES = [
+      "https://images.unsplash.com/photo-1583847268964-b28dc8f51f92", // Rio de Janeiro
+      "https://images.unsplash.com/photo-1596738980315-998845c48202", // Lençóis Maranhenses
+      "https://images.unsplash.com/photo-1590523741831-ab7e8b8f9c7f", // Fernando de Noronha
+      "https://images.unsplash.com/photo-1589308454676-92d640203f44", // Cataratas do Iguaçu
+      "https://images.unsplash.com/photo-1582298538104-fe2e74c27f59", // Salvador
+      "https://images.unsplash.com/photo-1516908205727-40afad9449a8", // Amazônia
+      "https://images.unsplash.com/photo-1598911515783-6cc35198818c", // Jalapão
+      "https://images.unsplash.com/photo-1591543620767-58ec7f37f374", // Arraial do Cabo
+      "https://images.unsplash.com/photo-1621517406451-996ff52e4630", // Bonito
+      "https://images.unsplash.com/photo-1622544521448-9f1504938099"  // Chapada dos Veadeiros
+    ];
+    const defaultImage = BRAZIL_DEFAULT_IMAGES[Math.floor(Math.random() * BRAZIL_DEFAULT_IMAGES.length)] + "?q=80&w=1470&auto=format&fit=crop";
     const groupImage = image || defaultImage;
 
     try {
