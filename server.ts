@@ -239,6 +239,8 @@ async function startServer() {
 
   // ─── Group Endpoints ───────────────────────────────────────────────────────
   app.post("/api/groups", authenticate, async (req: any, res) => {
+    const { name, description, type, image, startDate, endDate } = req.body;
+    const inviteCode = Math.random().toString(36).substring(2, 9).toUpperCase();
     const BRAZIL_DEFAULT_IMAGES = [
       "https://images.unsplash.com/photo-1583847268964-b28dc8f51f92", // Rio de Janeiro
       "https://images.unsplash.com/photo-1596738980315-998845c48202", // Lençóis Maranhenses
