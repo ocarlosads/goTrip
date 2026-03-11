@@ -272,6 +272,14 @@ function AppContent({
                 active={activeTab === "settings"}
                 onClick={() => { setActiveTab("settings"); setIsMobileMenuOpen(false); }}
               />
+              {isAdmin && (
+                <NavItem
+                  icon={<Shield className="w-5 h-5" />}
+                  label="Painel Admin"
+                  active={activeTab === "admin"}
+                  onClick={() => { setActiveTab("admin"); setIsMobileMenuOpen(false); }}
+                />
+              )}
             </nav>
             <div className="mt-auto pt-6 border-t border-gray-100 dark:border-gray-800">
               <button
