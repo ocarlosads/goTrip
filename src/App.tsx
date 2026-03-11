@@ -47,7 +47,7 @@ export default function App() {
     return false;
   });
 
-  const isAdmin = user?.email === "admin@checktrip.com.br";
+  const isAdmin = user?.email === "admin@gotrip.app.br";
 
   useEffect(() => {
     const checkAuth = async () => {

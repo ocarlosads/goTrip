@@ -1137,7 +1137,7 @@ async function startServer() {
 
   // ─── Admin Endpoints ──────────────────────────────────────────────────────
   app.get("/api/admin/stats", authenticate, async (req: any, res) => {
-    if (req.user.email !== "admin@checktrip.com.br") {
+    if (req.user.email !== "admin@gotrip.app.br") {
       return res.status(403).json({ error: "Access denied. Admin only." });
     }
 
