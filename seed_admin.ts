@@ -48,7 +48,7 @@ async function seedAdmin() {
                 inviteCode: 'ARR-2022',
                 startDate: new Date('2026-11-20T12:00:00Z'),
                 endDate: new Date('2026-11-27T12:00:00Z'),
-                image: 'https://images.unsplash.com/photo-1706870614081?q=80&w=1470&auto=format&fit=crop'
+                image: 'https://images.unsplash.com/photo-1591543620767-174df01ea6eb?q=80&w=1470&auto=format&fit=crop'
             }
         ];
 

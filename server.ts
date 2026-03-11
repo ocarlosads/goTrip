@@ -242,19 +242,19 @@ async function startServer() {
     const { name, description, type, image, startDate, endDate } = req.body;
     const inviteCode = Math.random().toString(36).substring(2, 9).toUpperCase();
     const BRAZIL_DEFAULT_IMAGES = [
-      "1483729558449", // Rio de Janeiro
-      "1597034331361", // Lençóis Maranhenses
-      "1591232635364", // Chapada Diamantina
-      "1508028337431", // Cataratas do Iguaçu
-      "1534861542011", // Amazônia
-      "1706870614081", // Arraial do Cabo
-      "1643197849529", // Fernando de Noronha
-      "1662997677426", // Jalapão
-      "1620732493518", // Chapada dos Veadeiros
-      "1653858118585"  // Bonito
+      "https://plus.unsplash.com/premium_photo-1680249637211-652c34313d9c", // Rio de Janeiro
+      "https://images.unsplash.com/photo-1635327906909-1008a8220195", // Lençóis Maranhenses
+      "https://images.unsplash.com/photo-1591232635364-0738e414c119", // Chapada Diamantina
+      "https://images.unsplash.com/photo-1508028337431-89d8bc277252", // Cataratas do Iguaçu
+      "https://images.unsplash.com/photo-1534861542011-209218408937", // Amazônia
+      "https://images.unsplash.com/photo-1591543620767-174df01ea6eb", // Arraial do Cabo
+      "https://images.unsplash.com/photo-1614722860207-909e0e8dfd99", // Fernando de Noronha
+      "https://images.unsplash.com/photo-1662997677426-edec9cc4a1f3", // Jalapão
+      "https://images.unsplash.com/photo-1620732493518-da146b9a805f", // Chapada dos Veadeiros
+      "https://images.unsplash.com/photo-1653858118585-6bb97e584f8d"  // Bonito
     ];
-    const randomId = BRAZIL_DEFAULT_IMAGES[Math.floor(Math.random() * BRAZIL_DEFAULT_IMAGES.length)];
-    const defaultImage = `https://images.unsplash.com/photo-${randomId}?q=80&w=1470&auto=format&fit=crop`;
+    const baseImage = BRAZIL_DEFAULT_IMAGES[Math.floor(Math.random() * BRAZIL_DEFAULT_IMAGES.length)];
+    const defaultImage = `${baseImage}?q=80&w=1470&auto=format&fit=crop`;
     const groupImage = image || defaultImage;
 
     try {
