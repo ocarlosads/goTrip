@@ -31,24 +31,24 @@ async function seedAdmin() {
         // Seed sample groups
         const groups = [
             {
-                name: 'Eurotrip 2026',
-                description: 'Explorando o melhor da Europa!',
+                name: 'Expedição Jalapão 2026',
+                description: 'Aventura nas dunas e fervedouros do Tocantins.',
                 type: 'group',
                 ownerId: admin.id,
-                inviteCode: 'EURO-26',
+                inviteCode: 'JAL-2026',
                 startDate: new Date('2026-06-15T12:00:00Z'),
                 endDate: new Date('2026-06-30T12:00:00Z'),
-                image: 'https://images.unsplash.com/photo-1467269204594-9661b134dd2b?q=80&w=1470&auto=format&fit=crop'
+                image: 'https://images.unsplash.com/photo-1662997677426?q=80&w=1470&auto=format&fit=crop'
             },
             {
-                name: 'Arraial do Cabo',
-                description: 'Paraíso das águas cristalinas no RJ.',
+                name: 'Paraíso de Arraial',
+                description: 'Descanso nas Prainhas do Pontal do Atalaia.',
                 type: 'couple',
                 ownerId: admin.id,
-                inviteCode: 'ARRA-22',
+                inviteCode: 'ARR-2022',
                 startDate: new Date('2026-11-20T12:00:00Z'),
                 endDate: new Date('2026-11-27T12:00:00Z'),
-                image: 'https://images.unsplash.com/photo-1591543620767-58ec7f37f374?q=80&w=1470&auto=format&fit=crop'
+                image: 'https://images.unsplash.com/photo-1706870614081?q=80&w=1470&auto=format&fit=crop'
             }
         ];
 
