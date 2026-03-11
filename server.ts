@@ -431,6 +431,7 @@ async function startServer() {
           image: g.image,
           startDate: g.startDate,
           endDate: g.endDate,
+          ownerId: g.ownerId,
         })));
       }
 
@@ -452,6 +453,7 @@ async function startServer() {
         image: m.group.image,
         startDate: m.group.startDate,
         endDate: m.group.endDate,
+        ownerId: m.group.ownerId,
       }));
       res.json(groups);
     } catch (err) {

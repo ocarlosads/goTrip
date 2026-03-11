@@ -32,6 +32,7 @@ interface Group {
   endDate?: string;
   nextTripDate?: string;
   userBalance: number;
+  ownerId?: string;
 }
 
 export default function App() {
@@ -672,22 +673,6 @@ function DashboardView({ onSelectGroup, user }: { onSelectGroup: (g: Group) => v
             group={group}
             onClick={() => onSelectGroup(group)}
             isAdmin={user?.role === "ADMIN"}
-            onDelete={async () => {
-              if (window.confirm(`Tem certeza que deseja excluir permanentemente o grupo "${group.name}"? Esta ação não pode ser desfeita.`)) {
-                try {
-                  const res = await apiFetch(`/api/groups/${group.id}`, { method: "DELETE" });
-                  if (res.ok) {
-                    showToast("Grupo excluído com sucesso!", "success");
-                    setGroups(groups.filter(g => g.id !== group.id));
-                  } else {
-                    const error = await res.json();
-                    showToast(error.error || "Erro ao excluir grupo", "error");
-                  }
-                } catch (err) {
-                  showToast("Falha ao se comunicar com o servidor", "error");
-                }
-              }
-            }}
           />
         ))}
       </div>
@@ -913,7 +898,7 @@ function JoinGroupModal({ isOpen, onClose, onJoin, joinId, setJoinId, isJoining 
   );
 }
 
-function GroupCard({ group, onClick, isAdmin, onDelete }: { group: Group, onClick: () => void, isAdmin?: boolean, onDelete?: () => void, key?: string }) {
+function GroupCard({ group, onClick, isAdmin }: { group: Group, onClick: () => void, isAdmin?: boolean, key?: string }) {
   const typeLabels = {
     solo: "Solo",
     couple: "Casal",
@@ -950,18 +935,6 @@ function GroupCard({ group, onClick, isAdmin, onDelete }: { group: Group, onClic
           {typeLabels[group.type]}
         </div>
         <div className="absolute top-4 right-4 flex items-center gap-2">
-          {isAdmin && onDelete && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete();
-              }}
-              className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-full shadow-lg transition-transform hover:scale-110"
-              title="Excluir Grupo"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          )}
           <div className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm px-3 py-1 rounded-full flex items-center gap-1.5 shadow-sm">
             <Users className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
             <span className="text-xs font-bold text-gray-900 dark:text-white">
@@ -1098,6 +1071,8 @@ function GroupDetailView({ group, onBack, onLeave, user }: { group: Group, onBac
   const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
   const [groupData, setGroupData] = useState<any>(null);
+  const [isDeleteConfirmModalOpen, setIsDeleteConfirmModalOpen] = useState(false);
+  const [isDeletingGroup, setIsDeletingGroup] = useState(false);
   const [isLoadingInitial, setIsLoadingInitial] = useState(true);
 
   // Group Settings State
@@ -1196,6 +1171,26 @@ function GroupDetailView({ group, onBack, onLeave, user }: { group: Group, onBac
       showToast("Falha no envio da imagem", "error");
     } finally {
       setIsUploadingImage(false);
+    }
+  };
+
+  const handleDeleteGroup = async () => {
+    setIsDeletingGroup(true);
+    try {
+      const res = await apiFetch(`/api/groups/${group.id}`, { method: "DELETE" });
+      if (res.ok) {
+        showToast("Viagem excluída com sucesso!", "success");
+        onLeave(group.id);
+        onBack();
+      } else {
+        const error = await res.json();
+        showToast(error.error || "Erro ao excluir viagem", "error");
+      }
+    } catch (err) {
+      showToast("Falha ao se comunicar com o servidor", "error");
+    } finally {
+      setIsDeletingGroup(false);
+      setIsDeleteConfirmModalOpen(false);
     }
   };
 
@@ -1352,7 +1347,7 @@ function GroupDetailView({ group, onBack, onLeave, user }: { group: Group, onBac
                   </div>
                 </div>
 
-                <div className="pt-2">
+                <div className="pt-4 border-t border-gray-100 dark:border-gray-800 space-y-3">
                   <button
                     type="submit"
                     disabled={isSavingSettings || isUploadingImage}
@@ -1360,8 +1355,61 @@ function GroupDetailView({ group, onBack, onLeave, user }: { group: Group, onBac
                   >
                     {isSavingSettings ? <Loader2 className="w-5 h-5 animate-spin" /> : "Salvar Configurações"}
                   </button>
+                  {(user?.role === "ADMIN" || group.ownerId === user?.id) && (
+                    <button
+                      type="button"
+                      onClick={() => { setIsSettingsModalOpen(false); setIsDeleteConfirmModalOpen(true); }}
+                      className="w-full bg-red-50 dark:bg-red-900/10 hover:bg-red-100 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2 border border-red-100 dark:border-red-900/20"
+                    >
+                      <Trash2 className="w-4 h-4" /> Excluir Viagem
+                    </button>
+                  )}
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Group Confirmation Modal */}
+      <AnimatePresence>
+        {isDeleteConfirmModalOpen && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsDeleteConfirmModalOpen(false)}
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative bg-white dark:bg-gray-900 w-full max-w-sm rounded-3xl shadow-2xl p-6 sm:p-8 max-h-[90vh] overflow-y-auto transition-colors text-center"
+            >
+              <div className="bg-red-100 dark:bg-red-900/30 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <Trash2 className="w-8 h-8 text-red-600 dark:text-red-400" />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Excluir Viagem?</h2>
+              <p className="text-gray-500 dark:text-gray-400 mb-8">
+                Esta ação é <strong>irreversível</strong>. Todos os dados de roteiro, custos e logística serão apagados permanentemente.
+              </p>
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={handleDeleteGroup}
+                  disabled={isDeletingGroup}
+                  className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-red-100 dark:shadow-none transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                >
+                  {isDeletingGroup ? <Loader2 className="w-5 h-5 animate-spin" /> : "Sim, Excluir Para Sempre"}
+                </button>
+                <button
+                  onClick={() => setIsDeleteConfirmModalOpen(false)}
+                  className="w-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-bold py-4 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition-all"
+                >
+                  Cancelar
+                </button>
+              </div>
             </motion.div>
           </div>
         )}
